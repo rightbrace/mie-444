@@ -18,6 +18,8 @@ void setup() {
   SPI.begin(); // Use default pins
   Bluetooth = SoftwareSerial(IPinBluetoothRX, OPinBluetoothTX);
 
+  Serial.println("Initialization complete");
+
 }
 
 void loop() {}

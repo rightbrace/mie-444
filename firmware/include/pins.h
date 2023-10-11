@@ -4,9 +4,7 @@
 #define __PINS_H
 
 // Free pins:
-// A5
 // ~D3 ~D9 
-// D7
 // D12 (SPI CIPO)
 
 const int OPinUltraData = 11;
@@ -28,7 +26,7 @@ const int OPinI2CClock = 18;
 const int OPinBluetoothTX = 2;
 const int IPinBluetoothRX = 4;
 
-const int IPinIR = A4;
+const int IPinIR = 7;
 
 void initializePins() {
 
