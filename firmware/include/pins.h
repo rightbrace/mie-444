@@ -7,8 +7,11 @@
 // ~D3 ~D9 
 // D12 (SPI CIPO)
 
+// Orange
 const int OPinUltraData = 11;
+// White
 const int OPinUltraClock = 13;
+// Purple
 const int OPinUltraLatch = 10;
 const int IPinUltraEcho = 8;
 
@@ -50,13 +53,25 @@ void initializePins() {
   pinMode(IOPinI2CData, OUTPUT);
   pinMode(OPinI2CClock, OUTPUT);
 
-  // Bluetooth software serial
-  pinMode(OPinBluetoothTX, OUTPUT);
-  pinMode(IPinBluetoothRX, INPUT);
-
   // Black/White IR sensor  
   pinMode(IPinIR, INPUT);
   
+}
+
+uint8_t shiftState = 0;
+
+void flushShiftRegister() {
+  digitalWrite(OPinUltraLatch, LOW);
+  SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
+  SPI.transfer(shiftState);
+  SPI.endTransaction();
+  digitalWrite(OPinUltraLatch, HIGH);
+}
+
+void shiftPinWrite(int pin, int value) {
+  shiftState &= ~(1<<pin);
+  shiftState |= (value << pin);
+  flushShiftRegister();
 }
 
 #endif // __PINS_H
