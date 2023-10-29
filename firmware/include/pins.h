@@ -1,7 +1,9 @@
-#include <Arduino.h>
-
 #ifndef __PINS_H
 #define __PINS_H
+
+#include <Arduino.h>
+#include <SPI.h>
+#include <SoftwareSerial.h>
 
 // Free pins:
 // ~D3 ~D9 
@@ -27,11 +29,17 @@ const int IOPinI2CData = 19;
 const int OPinI2CClock = 18;
 
 const int OPinBluetoothTX = 2;
+const int OPinBluetoothEN = 3;
 const int IPinBluetoothRX = 4;
 
 const int IPinIR = 7;
 
-void initializePins() {
+const int OPinStatusA = 6;
+const int OPinStatusB = 7;
+
+SoftwareSerial Bluetooth(OPinBluetoothTX, IPinBluetoothRX);
+
+void InitPins() {
 
   // Ultrasonic array
   pinMode(OPinUltraData, OUTPUT);
@@ -53,9 +61,24 @@ void initializePins() {
   pinMode(IOPinI2CData, OUTPUT);
   pinMode(OPinI2CClock, OUTPUT);
 
+  // Bluetooth
+  pinMode(OPinBluetoothEN, OUTPUT);
+  digitalWrite(OPinBluetoothEN, HIGH);
+
   // Black/White IR sensor  
   pinMode(IPinIR, INPUT);
   
+}
+
+bool InitBluetooth() {
+  Bluetooth = SoftwareSerial(OPinBluetoothTX, IPinBluetoothRX);
+  delay(5000);
+  digitalWrite(OPinBluetoothEN, LOW);
+  Bluetooth.begin(38400);
+  Bluetooth.write("AT+RESET\r\n");
+  Bluetooth.end();
+  Bluetooth.begin(9600);
+  return true;
 }
 
 uint8_t shiftState = 0;
@@ -68,7 +91,7 @@ void flushShiftRegister() {
   digitalWrite(OPinUltraLatch, HIGH);
 }
 
-void shiftPinWrite(int pin, int value) {
+void ShiftPinWrite(int pin, int value) {
   shiftState &= ~(1<<pin);
   shiftState |= (value << pin);
   flushShiftRegister();
