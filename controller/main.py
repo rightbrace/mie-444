@@ -188,7 +188,7 @@ while True:
         angle = SENSOR_ANGLES[i]
         labelled_line(ORIGIN, (
             ORIGIN[0] + dist * SCALE * cos(angle),
-            ORIGIN[1] + dist * SCALE * sin(angle)),
+            ORIGIN[1] - dist * SCALE * sin(angle)),
             f"{KNOWN_VALUES[i]}",
             BLUE)
         
