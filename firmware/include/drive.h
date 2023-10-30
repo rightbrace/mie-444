@@ -38,18 +38,23 @@ void SetDriveCommand(int16_t leftSteps, int16_t rightSteps) {
 
 // Step the wheels (as needed). Will not step each wheel more than once.
 bool ExecuteNextDriveStep() {
+  delayMicroseconds(1000);
   if (abs(RemainingLeftSteps) > abs(RemainingRightSteps)) {
     // If there's more left turn to execute
     stepWheel(LEFT_WHEEL, LeftWheelDir);
+    DriveElapsedLeftSteps += LeftWheelDir;
   } else if (abs(RemainingRightSteps) > abs(RemainingLeftSteps)) {
     // If there's more right turn to execute
     stepWheel(RIGHT_WHEEL, RightWheelDir);
+    DriveElapsedRightSteps += RightWheelDir;
   } else {
     // If there's the same amount of each wheel (in absolute terms)
     if (abs(RemainingLeftSteps) > 0) {
       // If both must step
       stepWheel(LEFT_WHEEL, LeftWheelDir);
       stepWheel(RIGHT_WHEEL, RightWheelDir);
+      DriveElapsedLeftSteps += LeftWheelDir;
+      DriveElapsedRightSteps += RightWheelDir;
     } else {
       // If both are done stepping, and we were running until now, send a halt message
       if (DriveRunning) {
@@ -75,12 +80,14 @@ void stepWheel(int wheel, int dir) {
 
   if (wheel == LEFT_WHEEL) {
     digitalWrite(OPinStepperLeftDir, dir);
+    delayMicroseconds(100);
     digitalWrite(OPinStepperLeftStep, HIGH);
     delayMicroseconds(500);
     digitalWrite(OPinStepperLeftStep, LOW);
     delayMicroseconds(500);
   } else if (wheel == RIGHT_WHEEL) {
     digitalWrite(OPinStepperRightDir, dir);
+    delayMicroseconds(100);
     digitalWrite(OPinStepperRightStep, HIGH);
     delayMicroseconds(500);
     digitalWrite(OPinStepperRightStep, LOW);

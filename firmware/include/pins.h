@@ -5,8 +5,10 @@
 #include <SPI.h>
 #include <SoftwareSerial.h>
 
+#define s16 int16_t
+
 // Free pins:
-// ~D3 ~D9 
+// ~D9 
 // D12 (SPI CIPO)
 
 // Orange
@@ -72,12 +74,14 @@ void InitPins() {
 
 bool InitBluetooth() {
   Bluetooth = SoftwareSerial(OPinBluetoothTX, IPinBluetoothRX);
-  delay(5000);
+  delay(4000);
   digitalWrite(OPinBluetoothEN, LOW);
   Bluetooth.begin(38400);
   Bluetooth.write("AT+RESET\r\n");
   Bluetooth.end();
   Bluetooth.begin(9600);
+  delay(1000);
+  while (Bluetooth.available()) Bluetooth.read();
   return true;
 }
 

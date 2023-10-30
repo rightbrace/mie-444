@@ -13,9 +13,9 @@ const float UltraSines[] = {
 
 const float UltraRadius = 50;
 
-float WheelRadius = 30;
-int WheelStepsPerRev = 120;
+float WheelRadius = 40;
+int WheelStepsPerRev = 200;
 float WheelStepTravel = WheelRadius * 2 * PI / (float) WheelStepsPerRev;
-float WheelSeparation = 200;
+float WheelSeparation = 166.66;
 
 #endif

@@ -74,6 +74,9 @@ def handle_ultra(which):
     handle_serial.ultra_request = which
     command_queue.append(command_ultra(which))
 
+def handle_clear():
+    KNOWN_VALUES = [0]*5
+
 def parse_ultra(string):
     which = string[4]
     MSB = string[5]
@@ -167,6 +170,8 @@ while True:
             elif event.key == K_u:
                 handle_ultra(last_ultra_req)
                 last_ultra_req = (last_ultra_req + 1) % 5
+            elif event.key == K_c:
+                handle_clear()
 
     # Handle all messages
     while handle_serial():
