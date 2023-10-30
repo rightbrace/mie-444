@@ -14,7 +14,7 @@ BLUE = (0, 255, 255)
 RED = (255, 127, 127)
 
 ROBOT_RADIUS = 120 # mm
-SENSOR_ANGLES = [4*pi / 4, 3*pi/4, 2*pi/4, 1*pi/4, 0*pi/4]
+SENSOR_ANGLES = [-pi / 2, -pi/4, 0, pi/4, pi/2]
 KNOWN_VALUES = [0] * 5
 
 ORIGIN = (WINDOW_SIZE[0]//2, WINDOW_SIZE[1]//2)
@@ -25,7 +25,7 @@ idle = True
 def r_theta(x, y):
     dx, dy = x - WINDOW_SIZE[0]/2, y - WINDOW_SIZE[1]/2
     r = sqrt(dx*dx + dy*dy)
-    theta = atan2(dy, dx)
+    theta = -atan2(dy, dx)
     return r, theta
 
 def command_turn(radians):
