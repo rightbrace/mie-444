@@ -49,6 +49,8 @@ void InitPins() {
   pinMode(OPinUltraLatch, OUTPUT);
   pinMode(IPinUltraEcho, INPUT);
 
+  pinMode(9, INPUT);
+
   // Stepper motor drivers
   pinMode(OPinStepperLeftStep, OUTPUT);
   pinMode(OPinStepperLeftDir, OUTPUT);
@@ -88,11 +90,16 @@ bool InitBluetooth() {
 uint8_t shiftState = 0;
 
 void flushShiftRegister() {
-  digitalWrite(OPinUltraLatch, LOW);
+  // digitalWrite(OPinUltraLatch, LOW);
+  bitClear(PORTB, 2);
+
   SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
   SPI.transfer(shiftState);
   SPI.endTransaction();
-  digitalWrite(OPinUltraLatch, HIGH);
+  // digitalWrite(OPinUltraLatch, HIGH);
+  bitSet(PORTB, 2);
+
+
 }
 
 void ShiftPinWrite(int pin, int value) {

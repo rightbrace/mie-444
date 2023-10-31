@@ -28,31 +28,38 @@ def r_theta(x, y):
     theta = -atan2(dy, dx)
     return r, theta
 
+def format_int(x):
+    if x < -999 or x > 999:
+        raise "out of bounds"
+    str = "+" if x >= 0 else "-"
+    str += f"{int(x):03d}"
+    return str
+
+def format_command(name, a=None, b=None):
+    comm = name
+    if a != None:
+        comm += format_int(a)
+    else:
+        comm += "...."
+    if b != None:
+        comm += format_int(b)
+    else:
+        comm += "...."
+    comm += ";"
+    return comm.encode("ascii")
+
 def command_turn(radians):
-    comm = b"TURN"
     degrees = int(radians * 180 / pi)
-    LSB = degrees & 0xff
-    MSB = (degrees & 0xff00) >> 8
-    comm = comm + bytes([MSB])
-    comm = comm + bytes([LSB])
-    comm = comm + b";"
-    return comm
+    return format_command("TURN", degrees)
 
 def command_drive(mm):
-    comm = b"DRIV"
-    LSB = int(mm) & 0xff
-    MSB = (int(mm) & 0xff00) >> 8
-    comm = comm + bytes([MSB])
-    comm = comm + bytes([LSB])
-    comm = comm + b";"
-    return comm
+    return format_command("DRIV", mm)
 
 def command_ultra(which):
-    return b"ULTR" + bytes([which]) + b";"
+    return format_command("ULTR", which)
 
 def command_halt():
-    return b"HALT;"
-
+    return format_command("HALT")
 
 def handle_quit():
     pygame.quit()
@@ -78,12 +85,11 @@ def handle_clear():
     KNOWN_VALUES = [0]*5
 
 def parse_ultra(string):
-    which = string[4]
-    MSB = string[5]
-    LSB = string[6]
-    dist = MSB << 8 | LSB
-    KNOWN_VALUES[which] = dist
-    print(f"Got back ultra {which} = {dist}")
+    which = int(string[3])
+    dx = int(string[4:8])
+    dy = int(string[8:12])
+    print(f"Got back ultra {which} : {dx=}, {dy=}")
+    KNOWN_VALUES[which] = sqrt(dx*dx + dy*dy)
 
 def parse_halt():
     global idle
@@ -109,7 +115,7 @@ def handle_serial():
     if line[:4] == b"HALT":
         if not idle:
             parse_halt()
-    elif line[:4] == b"ULTR":
+    elif line[:3] == b"ULT":
         parse_ultra(line)
     else:
         return False

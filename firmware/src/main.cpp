@@ -18,6 +18,10 @@
 // Configuration
 
 const int MinimumDriveIntervalms = 10;
+const int UltraScanInterval = 1000;
+
+// Running counts
+unsigned long UltraScanLastTime = 0;
 
 // Repeat a function until it either returns false or a given period has passed
 #define loopFor(task, period) do {int __start = millis(); while (true) {if (task()) break; int __now = millis(); if (__now - __start > period) {break;}}} while(false);
@@ -79,13 +83,13 @@ void process_msg() {
     SetDriveCommand(0, 0);
   } else if (str_match(4, (char*) incoming_msg, "DRIV")) {
 
-    u16 distance = ParseInt4((char*) incoming_msg+4);
+    s16 distance = ParseInt4((char*) incoming_msg+4);
     s16 steps = (s16) ((float) distance / WheelStepTravel);
     SetDriveCommand(steps, steps);
 
   } else if (str_match(4, (char*) incoming_msg, "TURN")) {
 
-    u16 bearing = ParseInt4((char*) incoming_msg+4);
+    s16 bearing = ParseInt4((char*) incoming_msg+4);
     float bearing_rad = (float) bearing * PI / 180;
     // How much arc must the wheel move through?
     // (Assume both wheels step at once)
@@ -93,18 +97,6 @@ void process_msg() {
     s16 steps = (s16) ((float) wheel_dist / WheelStepTravel);
     SetDriveCommand(-steps, steps);
 
-  } else if (str_match(4, (char*) incoming_msg, "COMP")) {
-    u16 bearing = ReadCompass();
-  } else if (str_match(4, (char*) incoming_msg, "FLOR")) {
-    u8 value = digitalRead(IPinIR);
-
-  } else if (str_match(3, (char*) incoming_msg, "SCAN")) {
-
-    u8 n = incoming_msg[4];
-    float distance = UltraRadius + ReadUltra(n);
-    u16 x = (u16) (UltraCosines[n] * distance);
-    u16 y = (u16) (UltraSines[n] * distance);
-    
   } else if (str_match(4, (char*) incoming_msg, "PING")) {
     Bluetooth.write("PONG;");
   }
@@ -147,22 +139,30 @@ void check_bluetooth() {
   }
 }
 
+void UltraScan() {
+  for (int i = 0; i < 5; i++) {
+    float r = ReadUltra(i);
+    Serial.print(i);
+    Serial.print(" ");
+    Serial.println(r);
+    float dx = UltraCosines[i] * r;
+    float dy = UltraSines[i] * r;
+    SendUltra(i, dx, dy);
+    delay(15);
+  }
+}
+
 void loop(){
 
-  // stepWheel(LEFT_WHEEL, 1);
-  // stepWheel(RIGHT_WHEEL, 1);
-  // delay(5);
-
-  // // Process drive instructions for a bit
+  // Process drive instructions for a bit
   // ExecuteNextDriveStep();
   check_bluetooth();
   loopFor(ExecuteNextDriveStep, MinimumDriveIntervalms);
 
-  // if (Bluetooth.available())
-  //    Serial.write(Bluetooth.read());
-  // // Keep reading from Arduino Serial Monitor and send to Software Serial
-  // if (Serial.available())
-  //    Bluetooth.write(Serial.read());
-
+  // Scan ultrasonics
+  if (millis() > UltraScanInterval + UltraScanLastTime) {
+    UltraScan();
+    UltraScanLastTime = millis();
+  }
 
 }

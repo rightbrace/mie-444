@@ -31,9 +31,10 @@ void SendFloor(int16_t value) {
   Bluetooth.write("xxxx;");
 }
 
-void SendUltra(int16_t localX, int16_t localY) {
+void SendUltra(u8 which, int16_t localX, int16_t localY) {
   // ULTRxxyy;
-  Bluetooth.write("ULTR");
+  Bluetooth.write("ULT");
+  Bluetooth.write('0' + which);
   SendInt(localX);
   SendInt(localY);
   Bluetooth.write(";");

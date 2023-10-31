@@ -14,14 +14,28 @@ uint16_t ReadCompass();
 const float MaxUltraDistance = 300;
 
 float ReadUltra(int sensor) {
-  if (sensor < 0 || sensor > 5) {
-    Serial.println("Invalid sensor");
-  }
+  unsigned long uDelay = 0;
   ShiftPinWrite(sensor, HIGH);
-  delayMicroseconds(10);
+  delay(10);
   ShiftPinWrite(sensor, LOW);
-  unsigned long uDelay = pulseIn(IPinUltraEcho, HIGH, MaxUltraDistance / (0.34027 / 2));
-  return ((float) uDelay * (0.34027 / 2));
+  switch (sensor) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    uDelay = pulseIn(IPinUltraEcho, HIGH, 10000);
+    break;
+
+    case 4:
+    uDelay = pulseIn(9, HIGH, 10000);
+    break;
+
+    default:
+    Serial.println("Invalid sensor");
+
+  }
+
+  return ((float) uDelay * (0.34027 / 2.0));
 }
 
 bool InitCompass() {
