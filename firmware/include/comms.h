@@ -4,6 +4,7 @@
 #include "pins.h"
 
 #define USE_SERIAL true
+
 #if USE_SERIAL
 #define Radio Serial
 SoftwareSerial Debug = SoftwareSerial(OPinBluetoothTX, IPinBluetoothRX);

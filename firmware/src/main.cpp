@@ -36,23 +36,23 @@ void setup() {
   Radio.begin(9600);
   Wire.begin(); // Use default pins
 
-  #if !USE_SERIAL
-  Radio.begin(38400);
-  bool done = false;
-  while (!done) {
-    while (Radio.available())
-      Debug.write(Radio.read());
-    while (Debug.available()) {
-      char chr = Debug.read(); 
-      if (chr == '/') {
-        done = true;
-        break;
-      }
-      Radio.write(chr);
-    }
-  }
-  Radio.begin(9600);
-  #endif
+  // #if !USE_SERIAL
+  // Radio.begin(38400);
+  // bool done = false;
+  // while (!done) {
+  //   while (Radio.available())
+  //     Debug.write(Radio.read());
+  //   while (Debug.available()) {
+  //     char chr = Debug.read(); 
+  //     if (chr == '/') {
+  //       done = true;
+  //       break;
+  //     }
+  //     Radio.write(chr);
+  //   }
+  // }
+  // Radio.begin(9600);
+  // #endif
 
 
 
