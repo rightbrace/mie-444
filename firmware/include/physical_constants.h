@@ -1,7 +1,6 @@
 #ifndef PHYSICAL_CONSTANTS_H
 #define PHYSICAL_CONSTANTS_H
 
-#define PI 3.14159
 
 // Angles = PI*4/4, PI*3/4, PI*2/4, PI*1/4, PI*0/4
 const float UltraCosines[] = {

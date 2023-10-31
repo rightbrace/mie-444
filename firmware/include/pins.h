@@ -5,6 +5,7 @@
 #include <SPI.h>
 #include <SoftwareSerial.h>
 
+
 #define s16 int16_t
 
 // Free pins:
@@ -39,8 +40,6 @@ const int IPinIR = 7;
 const int OPinStatusA = 6;
 const int OPinStatusB = 7;
 
-SoftwareSerial Bluetooth(OPinBluetoothTX, IPinBluetoothRX);
-
 void InitPins() {
 
   // Ultrasonic array
@@ -74,18 +73,6 @@ void InitPins() {
   
 }
 
-bool InitBluetooth() {
-  Bluetooth = SoftwareSerial(OPinBluetoothTX, IPinBluetoothRX);
-  delay(4000);
-  digitalWrite(OPinBluetoothEN, LOW);
-  Bluetooth.begin(38400);
-  Bluetooth.write("AT+RESET\r\n");
-  Bluetooth.end();
-  Bluetooth.begin(9600);
-  delay(1000);
-  while (Bluetooth.available()) Bluetooth.read();
-  return true;
-}
 
 uint8_t shiftState = 0;
 

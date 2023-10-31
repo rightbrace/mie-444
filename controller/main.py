@@ -3,6 +3,8 @@ import pygame
 from pygame.locals import *
 from math import pi, sin, cos, sqrt, atan2
 from random import randint
+import serial
+import serial.tools.list_ports
 
 
 WINDOW_SIZE = (800, 800) # px
@@ -19,6 +21,10 @@ KNOWN_VALUES = [0] * 5
 
 ORIGIN = (WINDOW_SIZE[0]//2, WINDOW_SIZE[1]//2)
 
+
+serialPort = serial.Serial(port='COM6', baudrate=9600, timeout=0, parity=serial.PARITY_EVEN, stopbits=1)
+
+
 command_queue = []
 idle = True
 
@@ -30,7 +36,7 @@ def r_theta(x, y):
 
 def format_int(x):
     if x < -999 or x > 999:
-        raise "out of bounds"
+        raise Exception("out of bounds")
     str = "+" if x >= 0 else "-"
     str += f"{int(x):03d}"
     return str
@@ -82,10 +88,12 @@ def handle_ultra(which):
     command_queue.append(command_ultra(which))
 
 def handle_clear():
+    global KNOWN_VALUES
     KNOWN_VALUES = [0]*5
 
 def parse_ultra(string):
-    which = int(string[3])
+    print("Parsing: " + str(string))
+    which = int(string[3] - ord('0'))
     dx = int(string[4:8])
     dy = int(string[8:12])
     print(f"Got back ultra {which} : {dx=}, {dy=}")
@@ -98,19 +106,8 @@ def parse_halt():
 
 def handle_serial():
 
-    if time.monotonic() - handle_serial.last_time > 2:
-        if handle_serial.ultra_request == None:
-            handle_serial.last_time = time.monotonic()
-            line = b"HALT;"
-        else:
-            dist = randint(ROBOT_RADIUS + 10, ROBOT_RADIUS + 300);
-            line = b"ULTR"
-            line = line + bytes([int(handle_serial.ultra_request), (dist & 0xff00) >> 8, dist & 0xff])
-            line = line + b";"
-            handle_serial.ultra_request = None
-        print("Got serial: ", line)
-    else:
-        line = b""
+    line = current_msg.encode("ascii")
+    print("Handling: " + line)
     
     if line[:4] == b"HALT":
         if not idle:
@@ -121,13 +118,23 @@ def handle_serial():
         return False
     return True
 
-handle_serial.last_time = time.monotonic()
-handle_serial.ultra_request = None
+current_msg = ""
+def read_bluetooth():
+    global current_msg
+    data = serialPort.read().decode("ascii")
+    if len(data) == 0:
+        return False
+    current_msg += data
+    print(current_msg)
+    if current_msg[-1] == ";":
+        handle_serial()
+        current_msg = ""
+    return True
 
 def serial_send(command):
-    # TODO
     print("Sending command: ", end="")
     print(command)
+    serialPort.write(command)
 
 def next_command():
     global idle
@@ -180,7 +187,7 @@ while True:
                 handle_clear()
 
     # Handle all messages
-    while handle_serial():
+    while read_bluetooth():
         pass
 
     # Send queued commands when appropriate

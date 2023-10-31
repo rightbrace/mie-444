@@ -31,7 +31,7 @@ float ReadUltra(int sensor) {
     break;
 
     default:
-    Serial.println("Invalid sensor");
+    Debug.println("Invalid sensor");
 
   }
 
