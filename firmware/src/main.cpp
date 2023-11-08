@@ -2,8 +2,6 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <SoftwareSerial.h>
-#include "Adafruit_HMC5883_U.h"
-#include "Servo.h"
 
 #include "pins.h"
 #include "drive.h"
@@ -12,16 +10,13 @@
 #include "physical_constants.h"
 
 
-#define DEBUG true
-
-
 // Configuration
 
 const int MinimumDriveIntervalms = 10;
-const int UltraScanInterval = 1000;
+const int ScanInterval = 500;
 
 // Running counts
-unsigned long UltraScanLastTime = 0;
+unsigned long ScanLastTime = 0;
 
 // Repeat a function until it either returns false or a given period has passed
 #define loopFor(task, period) do {int __start = millis(); while (true) {if (task()) break; int __now = millis(); if (__now - __start > period) {break;}}} while(false);
@@ -32,28 +27,11 @@ void setup() {
   InitPins();
 
   // Setup communication interfaces
-  Debug.begin(9600);
-  Radio.begin(9600);
+
+  Debug.begin(38400);
+  Radio.begin(38400);
   Wire.begin(); // Use default pins
-
-  // #if !USE_SERIAL
-  // Radio.begin(38400);
-  // bool done = false;
-  // while (!done) {
-  //   while (Radio.available())
-  //     Debug.write(Radio.read());
-  //   while (Debug.available()) {
-  //     char chr = Debug.read(); 
-  //     if (chr == '/') {
-  //       done = true;
-  //       break;
-  //     }
-  //     Radio.write(chr);
-  //   }
-  // }
-  // Radio.begin(9600);
-  // #endif
-
+  Wire.setClock(400000);
 
 
   // Setup peripherals
@@ -63,16 +41,8 @@ void setup() {
   Debug.print("Initializing gripper... ");
   Debug.println(InitGripper() ? "OK" : "ERR");
 
-  Debug.print("Initializing compass... ");
-  Debug.println(InitCompass() ? "OK" : "ERR");
-
-
-  for (int i = 0; i < 3; i++) {
-    ShiftPinWrite(OPinStatusA, HIGH);
-    delay(150);
-    ShiftPinWrite(OPinStatusB, LOW);
-    delay(150);
-  }
+  Debug.print("Initializing ToFs...");
+  Debug.println(InitTOFs() ? "OK" : "ERR");
 
   Debug.println("Initialization complete");
 
@@ -118,7 +88,10 @@ void process_msg() {
 
   } else if (str_match(4, (char*) incoming_msg, "PING")) {
     Radio.write("PONG........;");
+    while (true) {}
   }
+
+  Radio.write("ACK.........;");
 }
 
 void check_bluetooth() {
@@ -158,30 +131,33 @@ void check_bluetooth() {
   }
 }
 
-void UltraScan() {
+void RangeScan() {
   for (int i = 0; i < 5; i++) {
-    float r = ReadUltra(i);
+    float r = ReadToF(i);
     Debug.print(i);
     Debug.print(" ");
     Debug.println(r);
     float dx = UltraCosines[i] * r;
     float dy = UltraSines[i] * r;
-    SendUltra(i, dx, dy);
-    delay(15);
+    SendRange(i, (s16) dx, (s16) dy);
   }
 }
 
 void loop(){
-
+  
+  ShiftPinWrite(6, (millis() / 500) % 2);
+  ShiftPinWrite(7, Driving);
 
   // Process drive instructions for a bit
   check_bluetooth();
   loopFor(ExecuteNextDriveStep, MinimumDriveIntervalms);
 
-  // Scan ultrasonics
-  if (millis() > UltraScanInterval + UltraScanLastTime) {
-    UltraScan();
-    UltraScanLastTime = millis();
+  // Scan surroundings
+  if (millis() > ScanInterval + ScanLastTime && !Driving) {
+    RangeScan();
+    ScanLastTime = millis();
   }
 
 }
+
+

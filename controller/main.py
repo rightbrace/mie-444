@@ -15,15 +15,34 @@ WHITE = (255, 255, 255)
 BLUE = (0, 255, 255)
 RED = (255, 127, 127)
 
-ROBOT_RADIUS = 120 # mm
+ROBOT_RADIUS = 100 # mm
 SENSOR_ANGLES = [-pi / 2, -pi/4, 0, pi/4, pi/2]
 KNOWN_VALUES = [0] * 5
+BEARING = 0
 
 ORIGIN = (WINDOW_SIZE[0]//2, WINDOW_SIZE[1]//2)
 
 
-serialPort = serial.Serial(port='COM6', baudrate=9600, timeout=0, parity=serial.PARITY_EVEN, stopbits=1)
 
+ports = serial.tools.list_ports.comports()
+port = ""
+match len(ports):
+    case 0:
+        print("No comport found!")
+        exit()
+    case 1:
+        port = ports[0].device
+    case _:
+        print("Select port:")
+        for i, port in enumerate(ports):
+            print(f"{i} {port.device}")
+        idx = int(input(">").strip())
+        port = ports[idx].device
+
+print(f"Using port {port}")
+
+# serialPort = serial.Serial(port=port, baudrate=9600, timeout=0, parity=serial.PARITY_EVEN, stopbits=1)
+serialPort = serial.Serial(port=port, timeout=0, baudrate=38400)
 
 command_queue = []
 idle = True
@@ -36,9 +55,9 @@ def r_theta(x, y):
 
 def format_int(x):
     if x < -999 or x > 999:
-        raise Exception("out of bounds")
+        raise Exception(f"{x} is out of bounds")
     str = "+" if x >= 0 else "-"
-    str += f"{int(x):03d}"
+    str += f"{int(abs(x)):03d}"
     return str
 
 def format_command(name, a=None, b=None):
@@ -74,8 +93,8 @@ def handle_quit():
 def handle_click(x, y):
     r, theta = r_theta(x, y)
     command_queue.clear()
-    command_queue.append(command_turn(r))
-    command_queue.append(command_drive(theta))
+    command_queue.append(command_turn(theta))
+    command_queue.append(command_drive(r))
 
 def handle_halt():
     global idle
@@ -91,13 +110,16 @@ def handle_clear():
     global KNOWN_VALUES
     KNOWN_VALUES = [0]*5
 
-def parse_ultra(string):
-    print("Parsing: " + str(string))
-    which = int(string[3] - ord('0'))
+def parse_range(string):
+    which = int(ord(string[3]) - ord('0'))
     dx = int(string[4:8])
     dy = int(string[8:12])
-    print(f"Got back ultra {which} : {dx=}, {dy=}")
-    KNOWN_VALUES[which] = sqrt(dx*dx + dy*dy)
+    r = sqrt(dx*dx + dy*dy)
+    KNOWN_VALUES[which] = r
+
+def parse_comp(string):
+    global BEARING
+    BEARING = int(string[4:8])
 
 def parse_halt():
     global idle
@@ -106,14 +128,16 @@ def parse_halt():
 
 def handle_serial():
 
-    line = current_msg.encode("ascii")
+    line = current_msg
     print("Handling: " + line)
     
-    if line[:4] == b"HALT":
+    if line[:4] == "HALT":
         if not idle:
             parse_halt()
-    elif line[:3] == b"ULT":
-        parse_ultra(line)
+    elif line[:3] == "RNG":
+        parse_range(line)
+    elif line[:4] == "COMP":
+        parse_comp(line)
     else:
         return False
     return True
@@ -121,15 +145,20 @@ def handle_serial():
 current_msg = ""
 def read_bluetooth():
     global current_msg
-    data = serialPort.read().decode("ascii")
-    if len(data) == 0:
-        return False
-    current_msg += data
-    print(current_msg)
-    if current_msg[-1] == ";":
-        handle_serial()
-        current_msg = ""
-    return True
+
+    try:
+        data = serialPort.read().decode("ascii")
+        if len(data) == 0:
+            return False
+        current_msg += data
+        # print(current_msg)
+        if data == ";":
+            handle_serial()
+            current_msg = ""
+
+        return True
+    except Exception as e:
+        print(e)
 
 def serial_send(command):
     print("Sending command: ", end="")
@@ -152,7 +181,7 @@ def labelled_line(start, end, label, color):
     l = sqrt(delta[0]**2 + delta[1]**2)
     if l > 0:
         normal = (-delta[1] / l, delta[0] / l)
-        off = 20
+        off = 10
         midpoint = ((end[0] + start[0]) / 2 + normal[0] * off, (end[1] + start[1]) / 2 + normal[1]*off)
     else:
         midpoint = start
@@ -169,7 +198,7 @@ last_ultra_req = 0
 
 clock = pygame.time.Clock()
 pygame.font.init()
-font = pygame.font.SysFont("Arial", 10)
+font = pygame.font.SysFont("Arial", 16)
 while True:
     # Process incoming events
     for event in pygame.event.get():
@@ -178,13 +207,26 @@ while True:
         if event.type == MOUSEBUTTONDOWN:
             handle_click(*event.pos)
         if event.type == KEYDOWN:
-            if event.key == K_x:
+            if event.key == K_SPACE:
                 handle_halt()
             elif event.key == K_u:
                 handle_ultra(last_ultra_req)
                 last_ultra_req = (last_ultra_req + 1) % 5
             elif event.key == K_c:
                 handle_clear()
+            elif event.key == K_RIGHTBRACKET:
+                command_queue.append(command_turn(-30*pi/180))
+            elif event.key == K_LEFTBRACKET:
+                command_queue.append(command_turn(+30*pi/180))
+            elif event.key == K_DOWN:
+                command_queue.append(command_drive(-40))
+            elif event.key == K_UP:
+                command_queue.append(command_drive(40))
+            
+            elif event.key == K_LEFT:
+                command_queue.append(command_turn(30*pi/180))
+            elif event.key == K_RIGHT:
+                command_queue.append(command_turn(-30*pi/180))
 
     # Handle all messages
     while read_bluetooth():
@@ -204,17 +246,24 @@ while True:
     # Known sensor values
     for i, dist in enumerate(KNOWN_VALUES):
         angle = SENSOR_ANGLES[i]
-        labelled_line(ORIGIN, (
-            ORIGIN[0] + dist * SCALE * cos(angle),
-            ORIGIN[1] - dist * SCALE * sin(angle)),
-            f"{KNOWN_VALUES[i]}",
-            BLUE)
+        if dist >= 100:
+            labelled_line(ORIGIN, (
+                ORIGIN[0] + dist * SCALE * cos(angle),
+                ORIGIN[1] + dist * SCALE * sin(angle)),
+                f"{int(dist) - 100}",
+                BLUE)
         
     # To cursor
     cursor = pygame.mouse.get_pos()
     r, theta = r_theta(*cursor)
-    labelled_line(ORIGIN, pygame.mouse.get_pos(), f"{int(r)}<{int(theta*180/pi)}", RED)
+    labelled_line(ORIGIN, pygame.mouse.get_pos(), f"{int(r)}<{int(theta*180/pi)}", (0, 255, 0))
         
+    # # Compass
+    # compass_end = (
+    #     ORIGIN[0] + 200*cos((BEARING + 90) / 180 * pi),
+    #     ORIGIN[1] - 200*sin((BEARING + 90) / 180 * pi),
+    # )
+    # labelled_line(ORIGIN, compass_end, f"{BEARING + 90}", RED)
 
 
     # Update display and wait for next frame

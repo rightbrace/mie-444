@@ -19,16 +19,17 @@ int16_t DriveElapsedRightSteps = 0;
 #define LeftWheelDir (DriveCommandLeftSteps == 0 ? 0 : DriveCommandLeftSteps > 0 ? 1 : -1)
 #define RightWheelDir (DriveCommandRightSteps == 0 ? 0 : DriveCommandRightSteps > 0 ? 1 : -1)
 
+#define Driving (!((DriveCommandLeftSteps == DriveElapsedLeftSteps) && (DriveCommandRightSteps == DriveElapsedRightSteps)))
 
 void SetDriveCommand(int16_t leftSteps, int16_t rightSteps);
 bool ExecuteNextDriveStep();
-void stepWheel(int wheel, int dir);
+void stepWheels(int wheel, int dir);
 
 // Assign a new drive command and start the robot in motion
 void SetDriveCommand(int16_t leftSteps, int16_t rightSteps) {
   // Queue up all steps
-  DriveCommandLeftSteps = leftSteps;
-  DriveCommandRightSteps = rightSteps;
+  DriveCommandLeftSteps = (s16) ((float) leftSteps * 1.15);
+  DriveCommandRightSteps = (s16) ((float) rightSteps * 1.15);
   // SO far we've done none
   DriveElapsedLeftSteps = 0;
   DriveElapsedRightSteps = 0;
@@ -38,61 +39,59 @@ void SetDriveCommand(int16_t leftSteps, int16_t rightSteps) {
 
 // Step the wheels (as needed). Will not step each wheel more than once.
 bool ExecuteNextDriveStep() {
-  delayMicroseconds(1000);
-  if (abs(RemainingLeftSteps) > abs(RemainingRightSteps)) {
-    // If there's more left turn to execute
-    stepWheel(LEFT_WHEEL, LeftWheelDir);
-    DriveElapsedLeftSteps += LeftWheelDir;
-  } else if (abs(RemainingRightSteps) > abs(RemainingLeftSteps)) {
-    // If there's more right turn to execute
-    stepWheel(RIGHT_WHEEL, RightWheelDir);
-    DriveElapsedRightSteps += RightWheelDir;
+
+  float progress = (float) (DriveElapsedLeftSteps) / (float) (DriveCommandLeftSteps);
+  float delay = 3000 + 10000 * (2.25 - (5 * progress * (1- progress) + 1)); 
+  
+  if (DriveCommandLeftSteps/abs(DriveCommandLeftSteps) != DriveCommandRightSteps / abs(DriveCommandRightSteps)) 
+    delay = 5000 + 10000 * (2.25 - (3 * progress * (1- progress) + 1)); 
+
+  int leftStep = 0;
+  int rightStep = 0;
+
+  if (abs(DriveCommandLeftSteps) > 0 && DriveElapsedLeftSteps != DriveCommandLeftSteps)
+    leftStep = DriveCommandLeftSteps / abs(DriveCommandLeftSteps);
+
+  if (abs(DriveCommandRightSteps) > 0 && DriveElapsedRightSteps != DriveCommandRightSteps)
+    rightStep = DriveCommandRightSteps / abs(DriveCommandRightSteps);
+
+  if (leftStep != 0 || rightStep != 0) {
+    delayMicroseconds(int(delay));
+    stepWheels(leftStep, rightStep);
+    DriveElapsedLeftSteps += leftStep;
+    DriveElapsedRightSteps += rightStep;
   } else {
-    // If there's the same amount of each wheel (in absolute terms)
-    if (abs(RemainingLeftSteps) > 0) {
-      // If both must step
-      stepWheel(LEFT_WHEEL, LeftWheelDir);
-      stepWheel(RIGHT_WHEEL, RightWheelDir);
-      DriveElapsedLeftSteps += LeftWheelDir;
-      DriveElapsedRightSteps += RightWheelDir;
-    } else {
-      // If both are done stepping, and we were running until now, send a halt message
-      if (DriveRunning) {
-        DriveRunning = false;
-        SendHalted();
-      }
-      // Otherwise, do nothing
-      // False indicates no step occured
-      return false;
+    if (DriveRunning) {
+      DriveRunning = false;
+      SendHalted();
     }
+    return false;
   }
-  // True indicates a step occured
   return true;
 }
 
 // wheel = LEFT | RIGHT
 // dir = -1, 0, 1, where 0 results in no rotation
-void stepWheel(int wheel, int dir) {
+void stepWheels(int leftDir, int rightDir) {
 
-  if (dir == 0) return; // Do nothing
+  bool stepLeft = leftDir != 0;
+  bool stepRight = rightDir != 0;
+
   // Motor driver expects 0 or 1
-  dir = (dir + 1) / 2;
+  leftDir = (leftDir + 1) / 2;
+  rightDir = (rightDir + 1) / 2;
 
-  if (wheel == LEFT_WHEEL) {
-    digitalWrite(OPinStepperLeftDir, dir);
-    delayMicroseconds(100);
-    digitalWrite(OPinStepperLeftStep, HIGH);
-    delayMicroseconds(500);
-    digitalWrite(OPinStepperLeftStep, LOW);
-    delayMicroseconds(500);
-  } else if (wheel == RIGHT_WHEEL) {
-    digitalWrite(OPinStepperRightDir, dir);
-    delayMicroseconds(100);
-    digitalWrite(OPinStepperRightStep, HIGH);
-    delayMicroseconds(500);
-    digitalWrite(OPinStepperRightStep, LOW);
-    delayMicroseconds(500);
-  }
+  // Set directions
+  digitalWrite(OPinStepperLeftDir, leftDir);
+  digitalWrite(OPinStepperRightDir, rightDir);
+
+  if (stepLeft) digitalWrite(OPinStepperLeftStep, HIGH);
+  if (stepRight) digitalWrite(OPinStepperRightStep, HIGH);
+  delayMicroseconds(500);
+  if (stepLeft) digitalWrite(OPinStepperLeftStep, LOW);
+  if (stepRight) digitalWrite(OPinStepperRightStep, LOW);
+  delayMicroseconds(500);
+
 }
 
 

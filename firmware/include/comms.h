@@ -3,9 +3,9 @@
 
 #include "pins.h"
 
-#define USE_SERIAL true
+#define WIRED_CONTROL false
 
-#if USE_SERIAL
+#if WIRED_CONTROL
 #define Radio Serial
 SoftwareSerial Debug = SoftwareSerial(OPinBluetoothTX, IPinBluetoothRX);
 #else
@@ -16,17 +16,7 @@ SoftwareSerial Radio = SoftwareSerial(OPinBluetoothTX, IPinBluetoothRX);
 #define s16 int16_t
 
 bool InitBluetooth() {
-  // Bluetooth = SoftwareSerial(OPinBluetoothTX, IPinBluetoothRX);
-  #if !USE_SERIAL
-  delay(4000);
-  digitalWrite(OPinBluetoothEN, LOW);
-  Radio.begin(38400);
-  Radio.write("AT+RESET\r\n");
-  Radio.end();
-  Radio.begin(9600);
-  delay(1000);
-  while (Radio.available()) Radio.read();
-  #endif
+  // Bluetooth auto-inits now
   return true;
 }
 
@@ -51,18 +41,19 @@ void SendHalted() {
   Radio.write("HALT........;");
 }
 
-void SendUltra(u8 which, int16_t localX, int16_t localY) {
+void SendRange(u8 which, int16_t localX, int16_t localY) {
   // ULTRxxyy;
-  Radio.write("ULT");
+  Radio.write("RNG");
   Radio.write('0' + which);
   SendInt(localX);
   SendInt(localY);
   Radio.write(";");
 }
 
-void SendCompass(uint16_t bearing) {
-  Radio.write("COMP........;");
-  Radio.write(bearing);
+void SendCompass(s16 bearing) {
+  Radio.write("COMP");
+  SendInt(bearing);
+  Radio.write("....;");
 }
 
 #endif // __COMMS_H
