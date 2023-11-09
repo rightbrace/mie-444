@@ -42,9 +42,10 @@ bool ExecuteNextDriveStep() {
 
   float progress = (float) (DriveElapsedLeftSteps) / (float) (DriveCommandLeftSteps);
   float delay = 3000 + 10000 * (2.25 - (5 * progress * (1- progress) + 1)); 
-  
-  if (DriveCommandLeftSteps/abs(DriveCommandLeftSteps) != DriveCommandRightSteps / abs(DriveCommandRightSteps)) 
+
+  if (DriveCommandLeftSteps/abs(DriveCommandLeftSteps) != DriveCommandRightSteps / abs(DriveCommandRightSteps)) {
     delay = 5000 + 10000 * (2.25 - (3 * progress * (1- progress) + 1)); 
+  }
 
   int leftStep = 0;
   int rightStep = 0;

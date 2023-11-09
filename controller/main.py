@@ -22,7 +22,7 @@ BEARING = 0
 
 ORIGIN = (WINDOW_SIZE[0]//2, WINDOW_SIZE[1]//2)
 
-
+FLOOR = False
 
 ports = serial.tools.list_ports.comports()
 port = ""
@@ -42,10 +42,32 @@ match len(ports):
 print(f"Using port {port}")
 
 # serialPort = serial.Serial(port=port, baudrate=9600, timeout=0, parity=serial.PARITY_EVEN, stopbits=1)
-serialPort = serial.Serial(port=port, timeout=0, baudrate=38400)
+serialPort = serial.Serial(port=port, timeout=0, baudrate=9600)
 
 command_queue = []
 idle = True
+
+class Buffer:
+    def __init__(self):
+        self._message = ""
+    
+    def push(self, byte):
+        try:
+            self._message += bytes([byte]).decode("ascii")
+        except Exception as e:
+            print(f"Exception on byte {byte}, {self._message=}")
+            print(e)
+            self._message = ""
+            # exit() 
+
+    def message(self):
+        if len(self._message) == 0:
+            return
+        if self._message[-1] == ";":
+            msg = self._message
+            self._message = ""
+            return msg
+        return None
 
 def r_theta(x, y):
     dx, dy = x - WINDOW_SIZE[0]/2, y - WINDOW_SIZE[1]/2
@@ -99,6 +121,7 @@ def handle_click(x, y):
 def handle_halt():
     global idle
     command_queue.clear()
+    command_queue.append(b"............;")
     command_queue.append(command_halt())
     idle = True # Trigger send
 
@@ -121,14 +144,18 @@ def parse_comp(string):
     global BEARING
     BEARING = int(string[4:8])
 
+def parse_floor(string):
+    global FLOOR
+    value = int(string[4:8])
+    FLOOR = value != 0
+
 def parse_halt():
     global idle
     idle = True
     print("Robot halted")
 
-def handle_serial():
+def handle_serial(line):
 
-    line = current_msg
     print("Handling: " + line)
     
     if line[:4] == "HALT":
@@ -138,27 +165,23 @@ def handle_serial():
         parse_range(line)
     elif line[:4] == "COMP":
         parse_comp(line)
+    elif line[:4] == "FLOR":
+        parse_floor(line)
     else:
         return False
     return True
 
-current_msg = ""
+CURRENT_MESSAGE = Buffer()
 def read_bluetooth():
-    global current_msg
-
-    try:
-        data = serialPort.read().decode("ascii")
-        if len(data) == 0:
-            return False
-        current_msg += data
-        # print(current_msg)
-        if data == ";":
-            handle_serial()
-            current_msg = ""
-
-        return True
-    except Exception as e:
-        print(e)
+    global CURRENT_MESSAGE
+    data = serialPort.read()
+    if len(data) == 0:
+        return False
+    CURRENT_MESSAGE.push(data[0])
+    message = CURRENT_MESSAGE.message()
+    if message != None:
+        handle_serial(message)
+    return True
 
 def serial_send(command):
     print("Sending command: ", end="")
@@ -208,25 +231,25 @@ while True:
             handle_click(*event.pos)
         if event.type == KEYDOWN:
             if event.key == K_SPACE:
-                handle_halt()
+                serial_send(command_halt())
             elif event.key == K_u:
                 handle_ultra(last_ultra_req)
                 last_ultra_req = (last_ultra_req + 1) % 5
             elif event.key == K_c:
                 handle_clear()
             elif event.key == K_RIGHTBRACKET:
-                command_queue.append(command_turn(-30*pi/180))
+                serial_send(command_turn(-30*pi/180))
             elif event.key == K_LEFTBRACKET:
-                command_queue.append(command_turn(+30*pi/180))
+                serial_send(command_turn(+30*pi/180))
             elif event.key == K_DOWN:
-                command_queue.append(command_drive(-40))
+                serial_send(command_drive(-40))
             elif event.key == K_UP:
-                command_queue.append(command_drive(40))
+                serial_send(command_drive(40))
             
             elif event.key == K_LEFT:
-                command_queue.append(command_turn(30*pi/180))
+                serial_send(command_turn(30*pi/180))
             elif event.key == K_RIGHT:
-                command_queue.append(command_turn(-30*pi/180))
+                serial_send(command_turn(-30*pi/180))
 
     # Handle all messages
     while read_bluetooth():
@@ -241,7 +264,7 @@ while True:
 
     # Draw things
     # Robot
-    pygame.draw.circle(display, WHITE, ORIGIN, ROBOT_RADIUS * SCALE, width=1)
+    pygame.draw.circle(display, WHITE, ORIGIN, ROBOT_RADIUS * SCALE, width = 0 if FLOOR else 1)
 
     # Known sensor values
     for i, dist in enumerate(KNOWN_VALUES):
@@ -257,13 +280,6 @@ while True:
     cursor = pygame.mouse.get_pos()
     r, theta = r_theta(*cursor)
     labelled_line(ORIGIN, pygame.mouse.get_pos(), f"{int(r)}<{int(theta*180/pi)}", (0, 255, 0))
-        
-    # # Compass
-    # compass_end = (
-    #     ORIGIN[0] + 200*cos((BEARING + 90) / 180 * pi),
-    #     ORIGIN[1] - 200*sin((BEARING + 90) / 180 * pi),
-    # )
-    # labelled_line(ORIGIN, compass_end, f"{BEARING + 90}", RED)
 
 
     # Update display and wait for next frame

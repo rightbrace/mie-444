@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <Wire.h>
-#include <SoftwareSerial.h>
 
 #include "pins.h"
 #include "drive.h"
@@ -28,24 +27,21 @@ void setup() {
 
   // Setup communication interfaces
 
-  Debug.begin(38400);
-  Radio.begin(38400);
+  Serial.begin(9600);
   Wire.begin(); // Use default pins
   Wire.setClock(400000);
 
-
-  // Setup peripherals
-  Debug.print("Initializing bluetooth... ");
-  Debug.println(InitBluetooth() ? "OK" : "ERR");
-
-  Debug.print("Initializing gripper... ");
-  Debug.println(InitGripper() ? "OK" : "ERR");
-
-  Debug.print("Initializing ToFs...");
-  Debug.println(InitTOFs() ? "OK" : "ERR");
-
-  Debug.println("Initialization complete");
-
+  if (!InitBluetooth() || 
+      !InitGripper() ||
+      !InitTOFs()
+  ) {
+    while (true) {
+      ShiftPinWrite(7, HIGH);
+      delay(150);
+      ShiftPinWrite(7, LOW);
+      delay(150);
+    }
+  }
 }
 
 bool str_match(int len, char *a, const char *b) {
@@ -66,7 +62,7 @@ s16 ParseInt4(char *str) {
   return x;
 }
 
-void process_msg() {
+void ProcessMessage() {
   if (str_match(4, (char*) incoming_msg, "HALT")) {
     // Set the current drive command to no steps
     SetDriveCommand(0, 0);
@@ -83,42 +79,35 @@ void process_msg() {
     // How much arc must the wheel move through?
     // (Assume both wheels step at once)
     float wheel_dist = bearing_rad * WheelSeparation / 2;
-    s16 steps = (s16) ((float) wheel_dist / WheelStepTravel);
+    float k = bearing < 0 ? 0.985 : 0.97;
+    s16 steps = (s16) (k * (float) wheel_dist / WheelStepTravel);
     SetDriveCommand(-steps, steps);
-
+  
+  } else if (str_match(4, (char*) incoming_msg, "STEP")) {
+    s16 left = ParseInt4((char*) incoming_msg+4);
+    s16 right = ParseInt4((char*) incoming_msg+8);
+    SetDriveCommand(left, right);
   } else if (str_match(4, (char*) incoming_msg, "PING")) {
-    Radio.write("PONG........;");
-    while (true) {}
+    Serial.write("PONG........;");
   }
 
-  Radio.write("ACK.........;");
+  Serial.write("ACK.........;");
 }
 
-void check_bluetooth() {
-  while (Radio.available()) {
-    char chr = Radio.read();
+void ReadBluetooth() {
+  while (Serial.available()) {
+    char chr = Serial.read();
     incoming_msg[msg_size++] = chr;
 
     // Check for terminator
     if (chr == ';') {
-      Debug.print("End of transmission: ");
-      for (int i = 0; i < sizeof(incoming_msg); i++)
-        Debug.print((char) incoming_msg[i]);
-      Debug.println();
-      Debug.print("msg_size = ");
-      Debug.println(msg_size);
-
-      // Confirm its at the end of the buffer, if so, all good
-      // If not, then something went wrong. Just clear the buffer
-      // and keep reading
       if (msg_size == sizeof(incoming_msg)) {
-        process_msg();
+        ProcessMessage();
       } else {
-        Debug.println("Invalid command");
-        Radio.write("Invalid command, have: '");
+        Serial.write("INVALID HAVE: '");
         for (int i = 0; i < sizeof(incoming_msg); i++)
-          Radio.write((char) incoming_msg[i]);
-        Radio.write("'\n");
+          Serial.write((char) incoming_msg[i]);
+        Serial.write("'\n");
       }
     }
 
@@ -134,13 +123,11 @@ void check_bluetooth() {
 void RangeScan() {
   for (int i = 0; i < 5; i++) {
     float r = ReadToF(i);
-    Debug.print(i);
-    Debug.print(" ");
-    Debug.println(r);
-    float dx = UltraCosines[i] * r;
-    float dy = UltraSines[i] * r;
+    float dx = ScannerCosines[i] * r;
+    float dy = ScannerSines[i] * r;
     SendRange(i, (s16) dx, (s16) dy);
   }
+  SendFloor(ReadIR());               
 }
 
 void loop(){
@@ -148,8 +135,9 @@ void loop(){
   ShiftPinWrite(6, (millis() / 500) % 2);
   ShiftPinWrite(7, Driving);
 
+  ReadBluetooth();
+
   // Process drive instructions for a bit
-  check_bluetooth();
   loopFor(ExecuteNextDriveStep, MinimumDriveIntervalms);
 
   // Scan surroundings

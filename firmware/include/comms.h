@@ -3,15 +3,6 @@
 
 #include "pins.h"
 
-#define WIRED_CONTROL false
-
-#if WIRED_CONTROL
-#define Radio Serial
-SoftwareSerial Debug = SoftwareSerial(OPinBluetoothTX, IPinBluetoothRX);
-#else
-SoftwareSerial Radio = SoftwareSerial(OPinBluetoothTX, IPinBluetoothRX);
-#define Debug Serial
-#endif
 
 #define s16 int16_t
 
@@ -22,9 +13,9 @@ bool InitBluetooth() {
 
 void SendInt(s16 value) {
   if (value >= 0) {
-    Radio.write("+");
+    Serial.write('+');
   } else {
-    Radio.write("-");
+    Serial.write('-');
     value = -value;
   }
   value %= 1000;
@@ -32,28 +23,36 @@ void SendInt(s16 value) {
   value -= hundreds * 100;
   int tens = value / 10;
   value -= tens * 10;
-  Radio.write('0' + hundreds);
-  Radio.write('0' + tens);
-  Radio.write('0' + value);
+  Serial.write('0' + hundreds);
+  Serial.write('0' + tens);
+  Serial.write('0' + value);
 }
 
 void SendHalted() {
-  Radio.write("HALT........;");
+  Serial.write("HALT........;");
 }
 
 void SendRange(u8 which, int16_t localX, int16_t localY) {
-  // ULTRxxyy;
-  Radio.write("RNG");
-  Radio.write('0' + which);
+  Serial.write("RNG");
+  Serial.write('0' + which);
   SendInt(localX);
   SendInt(localY);
-  Radio.write(";");
+  Serial.write(";");
 }
 
 void SendCompass(s16 bearing) {
-  Radio.write("COMP");
+  Serial.write("COMP");
   SendInt(bearing);
-  Radio.write("....;");
+  Serial.write("....;");
+}
+
+void SendFloor(bool state) {
+  Serial.write("FLOR");
+  if (state) {
+    Serial.write("+0010000;");
+  } else {
+    Serial.write("+0000000;");
+  }
 }
 
 #endif // __COMMS_H
