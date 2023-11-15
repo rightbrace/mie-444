@@ -10,12 +10,13 @@
 
 
 // Configuration
-
 const int MinimumDriveIntervalms = 10;
 const int ScanInterval = 500;
 
 // Running counts
 unsigned long ScanLastTime = 0;
+
+
 
 // Repeat a function until it either returns false or a given period has passed
 #define loopFor(task, period) do {int __start = millis(); while (true) {if (task()) break; int __now = millis(); if (__now - __start > period) {break;}}} while(false);
@@ -29,7 +30,8 @@ void setup() {
 
   Serial.begin(9600);
   Wire.begin(); // Use default pins
-  Wire.setClock(400000);
+  // Wire.setClock(400000);
+
 
   if (!InitBluetooth() || 
       !InitGripper() ||
@@ -55,43 +57,48 @@ u8 incoming_msg[13] = {0};
 u8 msg_size = 0;
 
 s16 ParseInt4(char *str) {
-  s16 x = str[2] - '0';
+  s16 x = str[3] - '0';
   x += (str[2] - '0') * 10;
   x += (str[1] - '0') * 100;
   x *= str[0] == '-' ? -1 : 1;
   return x;
 }
 
+bool IsScanning = false;
+s16 ScanAngle = 6;
+s16 RemainingScanSteps = 0;
+
 void ProcessMessage() {
   if (str_match(4, (char*) incoming_msg, "HALT")) {
     // Set the current drive command to no steps
     SetDriveCommand(0, 0);
+    RemainingScanSteps = 0;
   } else if (str_match(4, (char*) incoming_msg, "DRIV")) {
-
     s16 distance = ParseInt4((char*) incoming_msg+4);
     s16 steps = (s16) ((float) distance / WheelStepTravel);
     SetDriveCommand(steps, steps);
-
   } else if (str_match(4, (char*) incoming_msg, "TURN")) {
-
     s16 bearing = ParseInt4((char*) incoming_msg+4);
-    float bearing_rad = (float) bearing * PI / 180;
-    // How much arc must the wheel move through?
-    // (Assume both wheels step at once)
-    float wheel_dist = bearing_rad * WheelSeparation / 2;
-    float k = bearing < 0 ? 0.985 : 0.97;
-    s16 steps = (s16) (k * (float) wheel_dist / WheelStepTravel);
+    s16 steps = (s16) ((float) bearing / WheelStepRotation);
     SetDriveCommand(-steps, steps);
-  
+  } else if (str_match(4, (char*) incoming_msg, "SCAN")) {
+    ScanAngle = ParseInt4((char*) incoming_msg + 4);
+    RemainingScanSteps = 360 / ScanAngle;
+    Serial.print("SCAN");
+    Serial.print(RemainingScanSteps);
+    Serial.print(";");
   } else if (str_match(4, (char*) incoming_msg, "STEP")) {
     s16 left = ParseInt4((char*) incoming_msg+4);
     s16 right = ParseInt4((char*) incoming_msg+8);
     SetDriveCommand(left, right);
+  } else if (str_match(4, (char*) incoming_msg, "GRIP")) {
+    s16 pitch = ParseInt4((char*) incoming_msg + 4);
+    s16 clamp = ParseInt4((char*) incoming_msg + 8);
+    SetGripper(pitch, clamp);
   } else if (str_match(4, (char*) incoming_msg, "PING")) {
     Serial.write("PONG........;");
   }
 
-  Serial.write("ACK.........;");
 }
 
 void ReadBluetooth() {
@@ -102,6 +109,7 @@ void ReadBluetooth() {
     // Check for terminator
     if (chr == ';') {
       if (msg_size == sizeof(incoming_msg)) {
+        Serial.write("ACK.........;");
         ProcessMessage();
       } else {
         Serial.write("INVALID HAVE: '");
@@ -120,14 +128,68 @@ void ReadBluetooth() {
   }
 }
 
+#define timeit(name, expr) do {auto __start = millis(); expr; Serial.print(name); Serial.print(millis() - __start); Serial.print(";");} while(false);
+
 void RangeScan() {
+  int radii[5] = {0};
   for (int i = 0; i < 5; i++) {
-    float r = ReadToF(i);
+    float r;
+    r = ReadToF(i);
+    // timeit("tof", r = ReadToF(i));
     float dx = ScannerCosines[i] * r;
     float dy = ScannerSines[i] * r;
+    radii[i] = (s16) r;
     SendRange(i, (s16) dx, (s16) dy);
   }
-  SendFloor(ReadIR());               
+  // Rear ultra
+  SendRange(5, 0, (s16) -ReadRearUltra());
+  SendFloor(ReadIR());
+  SendBearing(RobotBearing);  
+  SendPosition(RobotX, RobotY);     
+
+  // const float variance = 5;
+  // int numStraight = 0;
+
+  // for (int i = 0; i < 4; i++) {
+
+  //   float target_angle = i % 2 ? 45 : 90;
+
+  //   float a = (float) radii[i];
+  //   float b = (float) radii[i+1];
+  //   if (a == 0 || b == 0)
+  //     continue;
+
+  //   // if (b < a) {
+  //   //   float _ = b;
+  //   //   b = a;
+  //   //   a = _;
+  //   // }
+
+
+
+
+  //   Serial.println("----");
+  //   Serial.print(i);
+  //   Serial.print(": ");
+  //   Serial.println(radii[i]);
+  //   Serial.print(i+1);
+  //   Serial.print(": ");
+  //   Serial.println(radii[i+1]);
+  //   float ang = 180 / M_PI * asin(b / (M_SQRT2 * sqrt(a*a + b*b - 2 * a * b / M_SQRT2)));
+  //   Serial.print("angle = ");
+  //   Serial.println(ang );
+  //   Serial.print("target = ");
+  //   Serial.println(target_angle);
+
+  //   if (ang > target_angle - variance && ang < target_angle + variance) {
+  //     numStraight ++;
+  //     Serial.println ("(straight)");
+  //   }
+  // }
+
+  // Serial.println();
+  // Serial.println(numStraight);
+
 }
 
 void loop(){
@@ -139,6 +201,15 @@ void loop(){
 
   // Process drive instructions for a bit
   loopFor(ExecuteNextDriveStep, MinimumDriveIntervalms);
+
+  if (RemainingScanSteps > 0) {
+    if (!Driving) {
+      RangeScan();
+      RemainingScanSteps --;
+      s16 steps = (s16) ((float) ScanAngle / WheelStepRotation);
+      SetDriveCommand(-steps, steps);
+    }
+  }
 
   // Scan surroundings
   if (millis() > ScanInterval + ScanLastTime && !Driving) {

@@ -6,31 +6,18 @@
 #include "pins.h"
 
 Servo ServoA, ServoB;
+void SetGripper(s16 pitch, s16 clamp);
 
 bool InitGripper() {
   if (ServoA.attach(OPinServoA) == INVALID_SERVO) return false;
   if (ServoB.attach(OPinServoB) == INVALID_SERVO) return false;
+  SetGripper(0, 0);
   return true;
 }
 
-void GripperDown() {
-  // TODO
-  ServoA.write(0);  
-}
-
-void GripperUp() {
-  // TODO
-  ServoA.write(0);  
-}
-
-void GripperOpen() {
-  // TODO
-  ServoB.write(0);  
-}
-
-void GripperClose() {
-  // TODO
-  ServoB.write(0);  
+void SetGripper(s16 pitch, s16 clamp) {
+  ServoA.write(pitch+90);  
+  ServoB.write(clamp+90);  
 }
 
 #endif

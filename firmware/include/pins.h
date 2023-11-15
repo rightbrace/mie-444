@@ -31,9 +31,8 @@ const int OPinServoB = 6;
 const int IOPinI2CData = 19;
 const int OPinI2CClock = 18;
 
-const int OPinBluetoothTX = 2;
-const int OPinBluetoothEN = 3;
-const int IPinBluetoothRX = 4;
+const int OPinRearUltraTrigger = 2;
+const int IPinRearUltraEcho = 3;
 
 const int IPinIR = 7;
 
@@ -64,9 +63,9 @@ void InitPins() {
   pinMode(IOPinI2CData, OUTPUT);
   pinMode(OPinI2CClock, OUTPUT);
 
-  // Bluetooth
-  pinMode(OPinBluetoothEN, OUTPUT);
-  digitalWrite(OPinBluetoothEN, HIGH);
+  // Rear ultrasonic
+  pinMode(OPinRearUltraTrigger, OUTPUT);
+  pinMode(IPinRearUltraEcho, INPUT);
 
   // Black/White IR sensor  
   pinMode(IPinIR, INPUT);
@@ -85,7 +84,6 @@ void flushShiftRegister() {
   SPI.endTransaction();
   // digitalWrite(OPinUltraLatch, HIGH);
   bitSet(PORTB, 2);
-
 
 }
 

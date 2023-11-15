@@ -3,9 +3,24 @@
 
 #include "pins.h"
 #include "comms.h"
+#include "physical_constants.h"
 
 #define LEFT_WHEEL 0
 #define RIGHT_WHEEL 1
+
+float RobotX = 0; // mm
+float RobotY = 0; // mm
+float RobotBearing = 0; // Degrees
+
+float _bearingCos = 1;
+float _bearingSin = 0;
+
+void SetBearing(float newBearingDeg) {
+  newBearingDeg = fmod(newBearingDeg, 360);
+  RobotBearing = newBearingDeg;
+  _bearingCos = cos(newBearingDeg * PI / 180);
+  _bearingSin = sin(newBearingDeg * PI / 180);
+}
 
 bool DriveRunning = false;
 int16_t DriveCommandLeftSteps = 0;
@@ -28,8 +43,8 @@ void stepWheels(int wheel, int dir);
 // Assign a new drive command and start the robot in motion
 void SetDriveCommand(int16_t leftSteps, int16_t rightSteps) {
   // Queue up all steps
-  DriveCommandLeftSteps = (s16) ((float) leftSteps * 1.15);
-  DriveCommandRightSteps = (s16) ((float) rightSteps * 1.15);
+  DriveCommandLeftSteps = (s16) ((float) leftSteps);
+  DriveCommandRightSteps = (s16) ((float) rightSteps);
   // SO far we've done none
   DriveElapsedLeftSteps = 0;
   DriveElapsedRightSteps = 0;
@@ -41,10 +56,10 @@ void SetDriveCommand(int16_t leftSteps, int16_t rightSteps) {
 bool ExecuteNextDriveStep() {
 
   float progress = (float) (DriveElapsedLeftSteps) / (float) (DriveCommandLeftSteps);
-  float delay = 3000 + 10000 * (2.25 - (5 * progress * (1- progress) + 1)); 
+  float delay = 1000 + 10000 * (2.25 - (5 * progress * (1- progress) + 1)); 
 
   if (DriveCommandLeftSteps/abs(DriveCommandLeftSteps) != DriveCommandRightSteps / abs(DriveCommandRightSteps)) {
-    delay = 5000 + 10000 * (2.25 - (3 * progress * (1- progress) + 1)); 
+    delay = 1000 + 10000 * (2.25 - (3 * progress * (1- progress) + 1)); 
   }
 
   int leftStep = 0;
@@ -61,6 +76,14 @@ bool ExecuteNextDriveStep() {
     stepWheels(leftStep, rightStep);
     DriveElapsedLeftSteps += leftStep;
     DriveElapsedRightSteps += rightStep;
+
+    if (leftStep == rightStep) {
+      RobotX -= rightStep * _bearingSin * WheelStepTravel;
+      RobotY += rightStep * _bearingCos * WheelStepTravel;
+    } else {
+      SetBearing(RobotBearing + rightStep * WheelStepRotation);
+    }
+
   } else {
     if (DriveRunning) {
       DriveRunning = false;
