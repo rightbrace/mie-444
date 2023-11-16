@@ -29,7 +29,7 @@ X = 0
 Y = 0
 BEARING = 0
 
-ROTATION_AMOUNT = 30
+ROTATION_AMOUNT = 10
 ROLL_AMOUNT = 50
 SCAN_ANGLE = 6
 
@@ -324,6 +324,7 @@ while True:
     # Draw things
     # Robot
     pygame.draw.circle(display, WHITE, ORIGIN, ROBOT_RADIUS * SCALE, width = 0 if FLOOR else 1)
+    pygame.draw.circle(display, (127, 127, 127), (ORIGIN[0], ORIGIN[1] - SCALE * ROLL_AMOUNT), ROBOT_RADIUS * SCALE, width = 1)
 
     # Known sensor values
     for i, dist in enumerate(OLD_VALUES):
@@ -339,11 +340,11 @@ while True:
 
 
     # Compass
-    compass_end = (
-        ORIGIN[0] + 200*cos((BEARING) / 180 * pi),
-        ORIGIN[1] - 200*sin((BEARING) / 180 * pi),
-    )
-    labelled_line(ORIGIN, compass_end, f"{BEARING}", RED)
+    # compass_end = (
+    #     ORIGIN[0] + 200*cos((BEARING) / 180 * pi),
+    #     ORIGIN[1] - 200*sin((BEARING) / 180 * pi),
+    # )
+    # labelled_line(ORIGIN, compass_end, f"{BEARING}", RED)
 
     # Draw previous readings
     for reading in READINGS:
@@ -354,7 +355,7 @@ while True:
 
     text(f"Roll {ROLL_AMOUNT}mm [S-/W+] (Arrow keys)", 10, 10)
     text(f"Turn {ROTATION_AMOUNT}deg [A-/D+] (Arrow keys)", 10, 30)
-    text(f"Scan {SCAN_ANGLE}deg [Q-/E+] (F)", 10, 50)
+    # text(f"Scan {SCAN_ANGLE}deg [Q-/E+] (F)", 10, 50)
     text(f"Hoist Flag (G)", 10, 70)
     text(f"Clear Data (C)", 10, 90)
     text(f"Halt (SPACE)", 10, 110)
