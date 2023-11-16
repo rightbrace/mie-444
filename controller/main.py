@@ -346,6 +346,19 @@ while True:
     # )
     # labelled_line(ORIGIN, compass_end, f"{BEARING}", RED)
 
+    # Turn indicator
+    turn_end = (
+        ORIGIN[0] + 50*cos((ROTATION_AMOUNT+90) / 180 * pi),
+        ORIGIN[1] - 50*sin((ROTATION_AMOUNT+90) / 180 * pi),
+    )
+    labelled_line(ORIGIN, turn_end, f"", RED)
+
+    turn_end = (
+        ORIGIN[0] + 50*cos((-ROTATION_AMOUNT+90) / 180 * pi),
+        ORIGIN[1] - 50*sin((-ROTATION_AMOUNT+90) / 180 * pi),
+    )
+    labelled_line(ORIGIN, turn_end, f"", RED)
+
     # Draw previous readings
     for reading in READINGS:
         lx, ly = to_local(reading.x, reading.y)
