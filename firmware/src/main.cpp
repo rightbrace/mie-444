@@ -138,7 +138,7 @@ bool SafetyCheck() {
   const float emergencyStopMargin = 40;
   if (ReadToF(0) < emergencyStopMargin) return false;
   if (ReadToF(2) < emergencyStopMargin) return false;
-  if (ReadToF(3) < emergencyStopMargin) return false;
+  if (ReadToF(4) < emergencyStopMargin) return false;
   return true;
 }
 
