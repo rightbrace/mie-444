@@ -40,7 +40,7 @@ port = ""
 match len(ports):
     case 0:
         print("No comport found!")
-        exit()
+        # exit()
     case 1:
         port = ports[0].device
     case _:
@@ -53,7 +53,10 @@ match len(ports):
 print(f"Using port {port}")
 
 # serialPort = serial.Serial(port=port, baudrate=9600, timeout=0, parity=serial.PARITY_EVEN, stopbits=1)
-serialPort = serial.Serial(port=port, timeout=0, baudrate=9600)
+try:
+    serialPort = serial.Serial(port=port, timeout=0, baudrate=9600)
+except Exception as e:
+    print(e)
 
 def to_global(local_x, local_y):
     global X, Y, BEARING
@@ -141,9 +144,6 @@ def parse_range(string):
     r = sqrt(dx*dx + dy*dy)
     OLD_VALUES[which] = KNOWN_VALUES[which]
     KNOWN_VALUES[which] = r
-
-    if which > 4:
-        return
     
     gx, gy = to_global(dx, dy)
     similar = False
@@ -152,7 +152,7 @@ def parse_range(string):
             similar = True
             break
     if not similar:
-        READINGS.append(Reading(gx, gy))
+        READINGS.append(Reading(gx, gy, z=1 if which != 6 else 0))
 
 def parse_floor(string):
     global FLOOR
@@ -193,10 +193,11 @@ def handle_serial(line):
     return True
 
 class Reading:
-    def __init__(self, global_x, global_y):
+    def __init__(self, global_x, global_y, z=1):
         self.timestamp = time.monotonic()
         self.x = global_x
         self.y = global_y
+        self.z = z
 
 class Buffer:
     def __init__(self):
@@ -313,6 +314,8 @@ while True:
                 serial_send(command_toggle_gripper())
             elif event.key == K_f:
                 serial_send(command_scan(SCAN_ANGLE))
+        elif event.type == MOUSEWHEEL:
+            SCALE *= (1 + 0.01 * event.y)
 
     # Handle all messages
     while read_bluetooth():
@@ -364,7 +367,7 @@ while True:
         lx, ly = to_local(reading.x, reading.y)
         x = WINDOW_SIZE[0] / 2 + lx * SCALE
         y = WINDOW_SIZE[1] / 2 - ly * SCALE
-        pygame.draw.rect(display, WHITE, (x-2, y-2, 4, 4))
+        pygame.draw.rect(display, WHITE if reading.z == 1 else BLUE, (x-2, y-2, 4, 4))
 
     text(f"Roll {ROLL_AMOUNT}mm [S-/W+] (Arrow keys)", 10, 10)
     text(f"Turn {ROTATION_AMOUNT}deg [A-/D+] (Arrow keys)", 10, 30)
