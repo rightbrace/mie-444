@@ -12,9 +12,6 @@
 Adafruit_VL53L0X tof;
 HMC5883L_Simple compass;
 
-float ReadUltra(int sensor);
-bool ReadIR();
-
 
 bool ReadIR() {
   return digitalRead(IPinIR);
@@ -28,29 +25,18 @@ float ReadRearUltra(){
   return ((float) uDelay * (0.34027 / 2.0)) + UltraRadius - 15;
 }
 
-float ReadUltra(int sensor) {
-  unsigned long uDelay = 0;
-  ShiftPinWrite(sensor, HIGH);
+float ReadGripperUltra(){
+  digitalWrite(OPinGripperUltraTrigger, HIGH);
   delay(10);
-  ShiftPinWrite(sensor, LOW);
-  switch (sensor) {
-    case 0:
-    case 1:
-    case 2:
-    case 3:
-    uDelay = pulseIn(IPinUltraEcho, HIGH, 10000);
-    break;
-
-    case 4:
-    uDelay = pulseIn(9, HIGH, 10000);
-    break;
-
-  }
-
-  return ((float) uDelay * (0.34027 / 2.0)) + UltraRadius;
+  digitalWrite(OPinGripperUltraTrigger, LOW);
+  auto uDelay = pulseIn(IPinGripperUltraEcho, HIGH, 4000);
+  return ((float) uDelay * (0.34027 / 2.0)) + UltraRadius - 15;
 }
 
+
 bool InitTOFs() {
+
+  // Cycle the TOF XSHUT pins simultaneously
   shiftState &= 0b11100000;
   flushShiftRegister();
   delay(10);
@@ -59,10 +45,6 @@ bool InitTOFs() {
   delay(10);
   shiftState &= 0b11100000;
   flushShiftRegister();
-  // for (int i = 0; i < 5; i++) ShiftPinWrite(i, LOW);
-  // delay(10);
-  // for (int i = 0; i < 5; i++) ShiftPinWrite(i, HIGH);
-  // for (int i = 0; i < 5; i++) ShiftPinWrite(i, LOW);
 
   for (int i = 0; i < 5; i++) {
     ShiftPinWrite(i, HIGH);

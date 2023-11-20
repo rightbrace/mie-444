@@ -13,12 +13,11 @@
 // D12 (SPI CIPO)
 
 // Orange
-const int OPinUltraData = 11;
+const int OPinShiftData = 11;
 // White
-const int OPinUltraClock = 13;
+const int OPinShiftClock = 13;
 // Purple
-const int OPinUltraLatch = 10;
-const int IPinUltraEcho = 8;
+const int OPinShiftLatch = 10;
 
 const int OPinStepperLeftStep = A0;
 const int OPinStepperLeftDir = A1;
@@ -34,6 +33,10 @@ const int OPinI2CClock = 18;
 const int OPinRearUltraTrigger = 2;
 const int IPinRearUltraEcho = 3;
 
+const int OPinGripperUltraTrigger = 4;
+const int IPinGripperUltraEcho = 8;
+
+
 const int IPinIR = 7;
 
 const int OPinStatusA = 6;
@@ -41,11 +44,10 @@ const int OPinStatusB = 7;
 
 void InitPins() {
 
-  // Ultrasonic array
-  pinMode(OPinUltraData, OUTPUT);
-  pinMode(OPinUltraClock, OUTPUT);
-  pinMode(OPinUltraLatch, OUTPUT);
-  pinMode(IPinUltraEcho, INPUT);
+  // Shift array
+  pinMode(OPinShiftData, OUTPUT);
+  pinMode(OPinShiftClock, OUTPUT);
+  pinMode(OPinShiftLatch, OUTPUT);
 
   pinMode(9, INPUT);
 
@@ -66,6 +68,10 @@ void InitPins() {
   // Rear ultrasonic
   pinMode(OPinRearUltraTrigger, OUTPUT);
   pinMode(IPinRearUltraEcho, INPUT);
+
+  // Gripper ultrasonic
+  pinMode(OPinGripperUltraTrigger, OUTPUT);
+  pinMode(IPinGripperUltraEcho, INPUT);
 
   // Black/White IR sensor  
   pinMode(IPinIR, INPUT);

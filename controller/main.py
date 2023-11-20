@@ -14,6 +14,7 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 BLUE = (0, 255, 255)
 RED = (255, 127, 127)
+GREEN = (127, 255, 127)
 
 ROBOT_RADIUS = 100 # mm
 SENSOR_ANGLES = [pi, pi*3/4, pi/2, pi/4, 0, -pi/2]
@@ -31,9 +32,7 @@ BEARING = 0
 
 ROTATION_AMOUNT = 10
 ROLL_AMOUNT = 50
-SCAN_ANGLE = 6
-
-DIVISOR_360_LIST = [6, 8, 9, 10, 12, 15, 18, 20, 24, 30, 36, 40, 45, 60, 72, 90]
+SAFETY = False
 
 ports = serial.tools.list_ports.comports()
 port = ""
@@ -120,6 +119,13 @@ def command_toggle_gripper():
     gripper = not gripper
     return format_command("GRIP", -90 if gripper else 0, 0)
 
+
+def command_set_safety(safety):
+    if safety:
+        return format_command("SAFE", 1)
+    else:
+        return format_command("SAFE", 0)
+
 def command_scan(step_size=6):
     return format_command("SCAN", step_size)
 
@@ -168,10 +174,15 @@ def parse_bearing(line):
     global BEARING
     BEARING = int(line[4:8])
 
+
 def parse_position(line):
     global X, Y
     X = int(line[2:7])
     Y = int(line[7:12])
+
+def parse_safety(line):
+    global SAFETY
+    SAFETY = int(line[4:8]) != 0
 
 def handle_serial(line):
 
@@ -188,6 +199,8 @@ def handle_serial(line):
         parse_bearing(line)
     elif line[:2] == "PN":
         parse_position(line)
+    elif line[:4] == "SAFE":
+        parse_safety(line)
     else:
         return False
     return True
@@ -306,19 +319,18 @@ while True:
                     ROLL_AMOUNT -= 50
                 else:
                     ROLL_AMOUNT -= 10
-            elif event.key == K_e:
-                SCAN_ANGLE = DIVISOR_360_LIST[(DIVISOR_360_LIST.index(SCAN_ANGLE) + 1) % len(DIVISOR_360_LIST)]
-            elif event.key == K_q:
-                SCAN_ANGLE = DIVISOR_360_LIST[(DIVISOR_360_LIST.index(SCAN_ANGLE) - 1) % len(DIVISOR_360_LIST)]
+            elif event.key == K_h:
+                serial_send(command_set_safety(not SAFETY))
             elif event.key == K_g:
                 serial_send(command_toggle_gripper())
-            elif event.key == K_f:
-                serial_send(command_scan(SCAN_ANGLE))
         elif event.type == MOUSEWHEEL:
             SCALE *= (1 + 0.01 * event.y)
 
     # Handle all messages
-    while read_bluetooth():
+    try:
+        while read_bluetooth():
+            pass
+    except Exception as e:
         pass
 
     # Clear screen
@@ -371,7 +383,7 @@ while True:
 
     text(f"Roll {ROLL_AMOUNT}mm [S-/W+] (Arrow keys)", 10, 10)
     text(f"Turn {ROTATION_AMOUNT}deg [A-/D+] (Arrow keys)", 10, 30)
-    # text(f"Scan {SCAN_ANGLE}deg [Q-/E+] (F)", 10, 50)
+    text(f"Safety {'ON' if SAFETY else 'OFF'} (H)", 10, 50, color=GREEN if SAFETY else RED)
     text(f"Hoist Flag (G)", 10, 70)
     text(f"Clear Data (C)", 10, 90)
     text(f"Halt (SPACE)", 10, 110)

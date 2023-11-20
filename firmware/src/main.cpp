@@ -12,10 +12,12 @@
 // Configuration
 const int MinimumDriveIntervalms = 10;
 const int ScanInterval = 500;
+const int SafetyCheckInterval = 100;
 
 // Running counts
 unsigned long ScanLastTime = 0;
-
+unsigned long SafetyCheckLastTime = 0;
+bool SafetyCheckEnabled = false;
 
 
 // Repeat a function until it either returns false or a given period has passed
@@ -64,15 +66,14 @@ s16 ParseInt4(char *str) {
   return x;
 }
 
-bool IsScanning = false;
-s16 ScanAngle = 6;
-s16 RemainingScanSteps = 0;
+void Halt() {
+  SetDriveCommand(0, 0);
+}
 
 void ProcessMessage() {
   if (str_match(4, (char*) incoming_msg, "HALT")) {
     // Set the current drive command to no steps
-    SetDriveCommand(0, 0);
-    RemainingScanSteps = 0;
+    Halt();
   } else if (str_match(4, (char*) incoming_msg, "DRIV")) {
     s16 distance = ParseInt4((char*) incoming_msg+4);
     s16 steps = (s16) ((float) distance / WheelStepTravel);
@@ -81,12 +82,6 @@ void ProcessMessage() {
     s16 bearing = ParseInt4((char*) incoming_msg+4);
     s16 steps = (s16) ((float) bearing / WheelStepRotation);
     SetDriveCommand(-steps, steps);
-  } else if (str_match(4, (char*) incoming_msg, "SCAN")) {
-    ScanAngle = ParseInt4((char*) incoming_msg + 4);
-    RemainingScanSteps = 360 / ScanAngle;
-    Serial.print("SCAN");
-    Serial.print(RemainingScanSteps);
-    Serial.print(";");
   } else if (str_match(4, (char*) incoming_msg, "STEP")) {
     s16 left = ParseInt4((char*) incoming_msg+4);
     s16 right = ParseInt4((char*) incoming_msg+8);
@@ -95,6 +90,14 @@ void ProcessMessage() {
     s16 pitch = ParseInt4((char*) incoming_msg + 4);
     s16 clamp = ParseInt4((char*) incoming_msg + 8);
     SetGripper(pitch, clamp);
+  } else if (str_match(4, (char*) incoming_msg, "SAFE")) {
+    s16 value = ParseInt4((char*) incoming_msg + 4);
+    SafetyCheckEnabled = value != 0;
+    if (SafetyCheckEnabled) {
+      Serial.write("SAFE+001....;");
+    } else {
+      Serial.write("SAFE+000....;");
+    }
   } else if (str_match(4, (char*) incoming_msg, "PING")) {
     Serial.write("PONG........;");
   }
@@ -130,6 +133,15 @@ void ReadBluetooth() {
 
 #define timeit(name, expr) do {auto __start = millis(); expr; Serial.print(name); Serial.print(millis() - __start); Serial.print(";");} while(false);
 
+// Check space around walls of robot
+bool SafetyCheck() {
+  const float emergencyStopMargin = 40;
+  if (ReadToF(0) < emergencyStopMargin) return false;
+  if (ReadToF(2) < emergencyStopMargin) return false;
+  if (ReadToF(3) < emergencyStopMargin) return false;
+  return true;
+}
+
 void RangeScan() {
   int radii[5] = {0};
   for (int i = 0; i < 5; i++) {
@@ -141,54 +153,57 @@ void RangeScan() {
     radii[i] = (s16) r;
     SendRange(i, (s16) dx, (s16) dy);
   }
-  // Rear ultra
   SendRange(5, 0, (s16) -ReadRearUltra());
+  SendRange(6, 0, (s16) ReadGripperUltra());
   SendFloor(ReadIR());
   SendBearing(RobotBearing);  
   SendPosition(RobotX, RobotY);     
 
-  // const float variance = 5;
-  // int numStraight = 0;
+  /*
+  const float variance = 5;
+  int numStraight = 0;
 
-  // for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 4; i++) {
 
-  //   float target_angle = i % 2 ? 45 : 90;
+    float target_angle = i % 2 ? 45 : 90;
 
-  //   float a = (float) radii[i];
-  //   float b = (float) radii[i+1];
-  //   if (a == 0 || b == 0)
-  //     continue;
+    float a = (float) radii[i];
+    float b = (float) radii[i+1];
+    if (a == 0 || b == 0)
+      continue;
 
-  //   // if (b < a) {
-  //   //   float _ = b;
-  //   //   b = a;
-  //   //   a = _;
-  //   // }
-
-
+    // if (b < a) {
+    //   float _ = b;
+    //   b = a;
+    //   a = _;
+    // }
 
 
-  //   Serial.println("----");
-  //   Serial.print(i);
-  //   Serial.print(": ");
-  //   Serial.println(radii[i]);
-  //   Serial.print(i+1);
-  //   Serial.print(": ");
-  //   Serial.println(radii[i+1]);
-  //   float ang = 180 / M_PI * asin(b / (M_SQRT2 * sqrt(a*a + b*b - 2 * a * b / M_SQRT2)));
-  //   Serial.print("angle = ");
-  //   Serial.println(ang );
-  //   Serial.print("target = ");
-  //   Serial.println(target_angle);
 
-  //   if (ang > target_angle - variance && ang < target_angle + variance) {
-  //     numStraight ++;
-  //     Serial.println ("(straight)");
-  //   }
-  // }
 
-  // Serial.println();
-  // Serial.println(numStraight);
+    Serial.println("----");
+    Serial.print(i);
+    Serial.print(": ");
+    Serial.println(radii[i]);
+    Serial.print(i+1);
+    Serial.print(": ");
+    Serial.println(radii[i+1]);
+    float ang = 180 / M_PI * asin(b / (M_SQRT2 * sqrt(a*a + b*b - 2 * a * b / M_SQRT2)));
+    Serial.print("angle = ");
+    Serial.println(ang );
+    Serial.print("target = ");
+    Serial.println(target_angle);
+
+    if (ang > target_angle - variance && ang < target_angle + variance) {
+      numStraight ++;
+      Serial.println ("(straight)");
+    }
+  }
+
+  Serial.println();
+  Serial.println(numStraight);
+
+  */
 
 }
 
@@ -202,13 +217,13 @@ void loop(){
   // Process drive instructions for a bit
   loopFor(ExecuteNextDriveStep, MinimumDriveIntervalms);
 
-  if (RemainingScanSteps > 0) {
-    if (!Driving) {
-      RangeScan();
-      RemainingScanSteps --;
-      s16 steps = (s16) ((float) ScanAngle / WheelStepRotation);
-      SetDriveCommand(-steps, steps);
+  // Intermittently check wall safety
+  if (SafetyCheckEnabled && Driving && millis() > SafetyCheckInterval + SafetyCheckLastTime) {
+    if (!SafetyCheck()) {
+      Halt();
+      Serial.write("SAFETYSTOP..;");
     }
+    SafetyCheckLastTime = millis();
   }
 
   // Scan surroundings
