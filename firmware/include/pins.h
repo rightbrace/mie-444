@@ -24,17 +24,14 @@ const int OPinStepperLeftDir = A1;
 const int OPinStepperRightStep = A2;
 const int OPinStepperRightDir = A3;
 
-const int OPinServoA = 5;
+const int OPinServoA = 4;
 const int OPinServoB = 6;
 
 const int IOPinI2CData = 19;
 const int OPinI2CClock = 18;
 
-const int OPinRearUltraTrigger = 2;
-const int IPinRearUltraEcho = 3;
-
-const int OPinGripperUltraTrigger = 4;
-const int IPinGripperUltraEcho = 8;
+const int OPinGripperUltraTrigger = 2;
+const int IPinGripperUltraEcho = 3;
 
 
 const int IPinIR = 7;
@@ -66,8 +63,8 @@ void InitPins() {
   pinMode(OPinI2CClock, OUTPUT);
 
   // Rear ultrasonic
-  pinMode(OPinRearUltraTrigger, OUTPUT);
-  pinMode(IPinRearUltraEcho, INPUT);
+  pinMode(OPinGripperUltraTrigger, OUTPUT);
+  pinMode(IPinGripperUltraEcho, INPUT);
 
   // Gripper ultrasonic
   pinMode(OPinGripperUltraTrigger, OUTPUT);

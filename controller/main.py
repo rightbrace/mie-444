@@ -17,9 +17,9 @@ RED = (255, 127, 127)
 GREEN = (127, 255, 127)
 
 ROBOT_RADIUS = 100 # mm
-SENSOR_ANGLES = [pi, pi*3/4, pi/2, pi/4, 0, -pi/2]
-KNOWN_VALUES = [0] * 6
-OLD_VALUES = [0] * 6
+SENSOR_ANGLES = [pi, pi*3/4, pi/2, pi/4, 0, -pi/2, 0, 0]
+KNOWN_VALUES = [0] * 7
+OLD_VALUES = [0] * 7
 READINGS = []
 
 ORIGIN = (WINDOW_SIZE[0]//2, WINDOW_SIZE[1]//2)
@@ -113,12 +113,27 @@ def command_ultra(which):
 def command_halt():
     return format_command("HALT")
 
-gripper = False
+wrist = -30
+gripper = 0
+
+def grab():
+    global gripper
+    global wrist
+    gripper = 0 if gripper == -60 else -60
+    return format_command("GRIP", gripper, wrist)
+
+def up():
+    global gripper, wrist
+    wrist = -30 if wrist == -90 else -90
+    return format_command("GRIP", gripper, wrist)
+
 def command_toggle_gripper():
     global gripper
     gripper = not gripper
-    return format_command("GRIP", -90 if gripper else 0, 0)
+    return format_command("GRIP", -90 if gripper else 0, 0 if not gripper else -60)
 
+def command_set_gripper(wrist, pincer):
+    format_command("GRIP", wrist, pincer)
 
 def command_set_safety(safety):
     if safety:
@@ -157,7 +172,8 @@ def parse_range(string):
         if (old.x - gx)**2 + (old.y-gy)**2 < 3**2:
             similar = True
             break
-    if not similar:
+
+    if not similar or which == 6:
         READINGS.append(Reading(gx, gy, z=1 if which != 6 else 0))
 
 def parse_floor(string):
@@ -322,7 +338,10 @@ while True:
             elif event.key == K_h:
                 serial_send(command_set_safety(not SAFETY))
             elif event.key == K_g:
-                serial_send(command_toggle_gripper())
+                serial_send(grab())
+            elif event.key == K_t:
+                serial_send(up())
+
         elif event.type == MOUSEWHEEL:
             SCALE *= (1 + 0.01 * event.y)
 
@@ -379,6 +398,8 @@ while True:
         lx, ly = to_local(reading.x, reading.y)
         x = WINDOW_SIZE[0] / 2 + lx * SCALE
         y = WINDOW_SIZE[1] / 2 - ly * SCALE
+        if reading.z != 1:
+            print(reading)
         pygame.draw.rect(display, WHITE if reading.z == 1 else BLUE, (x-2, y-2, 4, 4))
 
     text(f"Roll {ROLL_AMOUNT}mm [S-/W+] (Arrow keys)", 10, 10)

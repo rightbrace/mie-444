@@ -9,6 +9,8 @@ Servo ServoA, ServoB;
 void SetGripper(s16 pitch, s16 clamp);
 
 bool InitGripper() {
+  pinMode(OPinServoA, OUTPUT);
+  pinMode(OPinServoB, OUTPUT);
   if (ServoA.attach(OPinServoA) == INVALID_SERVO) return false;
   if (ServoB.attach(OPinServoB) == INVALID_SERVO) return false;
   SetGripper(0, 0);

@@ -17,20 +17,14 @@ bool ReadIR() {
   return digitalRead(IPinIR);
 }
 
-float ReadRearUltra(){
-  digitalWrite(OPinRearUltraTrigger, HIGH);
-  delay(10);
-  digitalWrite(OPinRearUltraTrigger, LOW);
-  auto uDelay = pulseIn(IPinRearUltraEcho, HIGH, 4000);
-  return ((float) uDelay * (0.34027 / 2.0)) + UltraRadius - 15;
-}
-
 float ReadGripperUltra(){
   digitalWrite(OPinGripperUltraTrigger, HIGH);
   delay(10);
   digitalWrite(OPinGripperUltraTrigger, LOW);
   auto uDelay = pulseIn(IPinGripperUltraEcho, HIGH, 4000);
-  return ((float) uDelay * (0.34027 / 2.0)) + UltraRadius - 15;
+  auto dist = ((float) uDelay * (0.34027 / 2.0)) + UltraRadius - 15;
+  if (dist < 125) return 0;
+  return dist;
 }
 
 

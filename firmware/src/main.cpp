@@ -143,6 +143,8 @@ bool SafetyCheck() {
 }
 
 void RangeScan() {
+  SendBearing(RobotBearing);  
+  SendPosition(RobotX, RobotY);     
   int radii[5] = {0};
   for (int i = 0; i < 5; i++) {
     float r;
@@ -153,12 +155,9 @@ void RangeScan() {
     radii[i] = (s16) r;
     SendRange(i, (s16) dx, (s16) dy);
   }
-  SendRange(5, 0, (s16) -ReadRearUltra());
   SendRange(6, 0, (s16) ReadGripperUltra());
   SendFloor(ReadIR());
-  SendBearing(RobotBearing);  
-  SendPosition(RobotX, RobotY);     
-
+  
   /*
   const float variance = 5;
   int numStraight = 0;
@@ -177,9 +176,6 @@ void RangeScan() {
     //   b = a;
     //   a = _;
     // }
-
-
-
 
     Serial.println("----");
     Serial.print(i);
