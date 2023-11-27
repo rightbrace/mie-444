@@ -56,7 +56,7 @@ void SetDriveCommand(int16_t leftSteps, int16_t rightSteps) {
 bool ExecuteNextDriveStep() {
 
   float progress = (float) (DriveElapsedLeftSteps) / (float) (DriveCommandLeftSteps);
-  float delay = 1000 + 10000 * (2.25 - (5 * progress * (1- progress) + 1)); 
+  float delay = 2000 + 10000 * (2.25 - (5 * progress * (1- progress) + 1)); 
 
   if (DriveCommandLeftSteps/abs(DriveCommandLeftSteps) != DriveCommandRightSteps / abs(DriveCommandRightSteps)) {
     delay = 1000 + 10000 * (2.25 - (3 * progress * (1- progress) + 1)); 

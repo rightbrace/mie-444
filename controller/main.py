@@ -32,7 +32,6 @@ BEARING = 0
 
 ROTATION_AMOUNT = 10
 ROLL_AMOUNT = 50
-SAFETY = False
 
 ports = serial.tools.list_ports.comports()
 port = ""
@@ -132,14 +131,9 @@ def command_toggle_gripper():
     gripper = not gripper
     return format_command("GRIP", -90 if gripper else 0, 0 if not gripper else -60)
 
-def command_set_gripper(wrist, pincer):
-    format_command("GRIP", wrist, pincer)
+def command_set_gripper(pincer, wrist):
+    return format_command("GRIP", wrist, pincer)
 
-def command_set_safety(safety):
-    if safety:
-        return format_command("SAFE", 1)
-    else:
-        return format_command("SAFE", 0)
 
 def command_scan(step_size=6):
     return format_command("SCAN", step_size)
@@ -173,8 +167,8 @@ def parse_range(string):
             similar = True
             break
 
-    if not similar or which == 6:
-        READINGS.append(Reading(gx, gy, z=1 if which != 6 else 0))
+    if not similar or which == 5:
+        READINGS.append(Reading(gx, gy, z=1 if which != 5 else 0))
 
 def parse_floor(string):
     global FLOOR
@@ -196,9 +190,6 @@ def parse_position(line):
     X = int(line[2:7])
     Y = int(line[7:12])
 
-def parse_safety(line):
-    global SAFETY
-    SAFETY = int(line[4:8]) != 0
 
 def handle_serial(line):
 
@@ -215,8 +206,6 @@ def handle_serial(line):
         parse_bearing(line)
     elif line[:2] == "PN":
         parse_position(line)
-    elif line[:4] == "SAFE":
-        parse_safety(line)
     else:
         return False
     return True
@@ -335,12 +324,16 @@ while True:
                     ROLL_AMOUNT -= 50
                 else:
                     ROLL_AMOUNT -= 10
-            elif event.key == K_h:
-                serial_send(command_set_safety(not SAFETY))
             elif event.key == K_g:
                 serial_send(grab())
             elif event.key == K_t:
                 serial_send(up())
+            elif event.key == K_k: # Down / Open
+                serial_send(command_set_gripper(0, 45))
+            elif event.key == K_o: # Down / Closed
+                serial_send(command_set_gripper(0, -80))
+            elif event.key == K_i: # Up / closed
+                serial_send(command_set_gripper(-75,-80))
 
         elif event.type == MOUSEWHEEL:
             SCALE *= (1 + 0.01 * event.y)
@@ -357,9 +350,12 @@ while True:
 
     # Draw things
     # Robot
-    pygame.draw.circle(display, WHITE, ORIGIN, ROBOT_RADIUS * SCALE, width = 0 if FLOOR else 1)
+    pygame.draw.circle(display, WHITE, ORIGIN, ROBOT_RADIUS * SCALE, width = 1)
     pygame.draw.circle(display, (127, 127, 127), (ORIGIN[0], ORIGIN[1] - SCALE * ROLL_AMOUNT), ROBOT_RADIUS * SCALE, width = 1)
-
+    pygame.draw.rect(display, (127, 127, 127), 
+                     (ORIGIN[0] - 40 * SCALE, ORIGIN[1] - (60 + 100)*SCALE  - SCALE * ROLL_AMOUNT, 80*SCALE, 70*SCALE), width=1)
+    pygame.draw.rect(display, WHITE, 
+                     (ORIGIN[0] - 40 * SCALE, ORIGIN[1] - (60 + 100)*SCALE, 80*SCALE, 70*SCALE), width=1)
     # Known sensor values
     for i, dist in enumerate(OLD_VALUES):
         OLD_VALUES[i] += (KNOWN_VALUES[i] - OLD_VALUES[i]) * 0.1
@@ -398,16 +394,18 @@ while True:
         lx, ly = to_local(reading.x, reading.y)
         x = WINDOW_SIZE[0] / 2 + lx * SCALE
         y = WINDOW_SIZE[1] / 2 - ly * SCALE
-        if reading.z != 1:
-            print(reading)
-        pygame.draw.rect(display, WHITE if reading.z == 1 else BLUE, (x-2, y-2, 4, 4))
+        pygame.draw.rect(display, WHITE if reading.z == 1 else RED, (x-2, y-2, 12*SCALE, 12*SCALE))
 
     text(f"Roll {ROLL_AMOUNT}mm [S-/W+] (Arrow keys)", 10, 10)
     text(f"Turn {ROTATION_AMOUNT}deg [A-/D+] (Arrow keys)", 10, 30)
-    text(f"Safety {'ON' if SAFETY else 'OFF'} (H)", 10, 50, color=GREEN if SAFETY else RED)
-    text(f"Hoist Flag (G)", 10, 70)
     text(f"Clear Data (C)", 10, 90)
     text(f"Halt (SPACE)", 10, 110)
+
+    text(f"Gripper Up/Closed (I)", 10, 130)
+    text(f"Gripper Down/Closed (O)", 10, 180)
+    text(f"Gripper Down/Open (K)", 10, 150)
+
+
 
     # Update display and wait for next frame
     pygame.display.update()

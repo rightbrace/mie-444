@@ -22,7 +22,7 @@ float ReadGripperUltra(){
   delay(10);
   digitalWrite(OPinGripperUltraTrigger, LOW);
   auto uDelay = pulseIn(IPinGripperUltraEcho, HIGH, 4000);
-  auto dist = ((float) uDelay * (0.34027 / 2.0)) + UltraRadius - 15;
+  auto dist = ((float) uDelay * (0.34027 / 2.0)) + UltraRadius;
   if (dist < 125) return 0;
   return dist;
 }
@@ -40,7 +40,7 @@ bool InitTOFs() {
   shiftState &= 0b11100000;
   flushShiftRegister();
 
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 6; i++) {
     ShiftPinWrite(i, HIGH);
     if (!tof.begin(0x10 | i)) return false;
     delay(10);

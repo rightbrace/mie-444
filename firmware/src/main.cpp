@@ -10,14 +10,11 @@
 
 
 // Configuration
-const int MinimumDriveIntervalms = 10;
+const int MinimumDriveIntervalms = 40;
 const int ScanInterval = 500;
-const int SafetyCheckInterval = 100;
 
 // Running counts
 unsigned long ScanLastTime = 0;
-unsigned long SafetyCheckLastTime = 0;
-bool SafetyCheckEnabled = false;
 
 
 // Repeat a function until it either returns false or a given period has passed
@@ -90,14 +87,6 @@ void ProcessMessage() {
     s16 pitch = ParseInt4((char*) incoming_msg + 4);
     s16 clamp = ParseInt4((char*) incoming_msg + 8);
     SetGripper(pitch, clamp);
-  } else if (str_match(4, (char*) incoming_msg, "SAFE")) {
-    s16 value = ParseInt4((char*) incoming_msg + 4);
-    SafetyCheckEnabled = value != 0;
-    if (SafetyCheckEnabled) {
-      Serial.write("SAFE+001....;");
-    } else {
-      Serial.write("SAFE+000....;");
-    }
   } else if (str_match(4, (char*) incoming_msg, "PING")) {
     Serial.write("PONG........;");
   }
@@ -145,8 +134,8 @@ bool SafetyCheck() {
 void RangeScan() {
   SendBearing(RobotBearing);  
   SendPosition(RobotX, RobotY);     
-  int radii[5] = {0};
-  for (int i = 0; i < 5; i++) {
+  int radii[6] = {0};
+  for (int i = 0; i < 6; i++) {
     float r;
     r = ReadToF(i);
     // timeit("tof", r = ReadToF(i));
@@ -155,7 +144,7 @@ void RangeScan() {
     radii[i] = (s16) r;
     SendRange(i, (s16) dx, (s16) dy);
   }
-  SendRange(6, 0, (s16) ReadGripperUltra());
+  // SendRange(6, 0, (s16) ReadGripperUltra());
   SendFloor(ReadIR());
   
   /*
@@ -213,14 +202,6 @@ void loop(){
   // Process drive instructions for a bit
   loopFor(ExecuteNextDriveStep, MinimumDriveIntervalms);
 
-  // Intermittently check wall safety
-  if (SafetyCheckEnabled && Driving && millis() > SafetyCheckInterval + SafetyCheckLastTime) {
-    if (!SafetyCheck()) {
-      Halt();
-      Serial.write("SAFETYSTOP..;");
-    }
-    SafetyCheckLastTime = millis();
-  }
 
   // Scan surroundings
   if (millis() > ScanInterval + ScanLastTime && !Driving) {
