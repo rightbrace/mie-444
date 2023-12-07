@@ -54,6 +54,8 @@ bool InitTOFs() {
 
 float ReadToF(uint8_t which) {
   VL53L0X_RangingMeasurementData_t data;
+  // Never got around to vendoring the dependancy properly, so cloning from git won't reflect the change,
+  // but this field needs to not be marked private in the library. That's the only change
   tof.pMyDevice->I2cDevAddr = 0x10 | which;
   tof.MyDevice.I2cDevAddr = 0x10 | which;
   tof.rangingTest(&data);
